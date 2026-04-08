@@ -440,16 +440,16 @@ const CYBORG_STAGES = [
   {
     lvl: 1,
     name: 'Консервная банка',
-    icon: '/avatars/robot-lvl1.png',
+    icon: 'https://raw.githubusercontent.com/Nikifikis/nikita-math/refs/heads/main/public/avatars/robot-lvl1.png',
     reqLevel: 1,
     cost: 0,
     dmg: 0,
   },
-  { lvl: 2, name: 'Ржавый бот', icon: '📻', reqLevel: 10, cost: 100, dmg: 5 },
+  { lvl: 2, name: 'Ржавый бот', icon: 'https://raw.githubusercontent.com/Nikifikis/nikita-math/refs/heads/main/public/avatars/robot-lvl02.png', reqLevel: 10, cost: 100, dmg: 5 },
   {
     lvl: 3,
     name: 'Собранный на коленке',
-    icon: '/avatars/robot-lvl02.png',
+    icon: 'https://raw.githubusercontent.com/Nikifikis/nikita-math/refs/heads/main/public/avatars/robot-lvl03.png',
     reqLevel: 25,
     cost: 300,
     dmg: 12,
@@ -457,7 +457,7 @@ const CYBORG_STAGES = [
   {
     lvl: 4,
     name: 'Базовый автоматон',
-    icon: '📠',
+    icon: 'https://raw.githubusercontent.com/Nikifikis/nikita-math/refs/heads/main/public/avatars/robot-lvl04.png',
     reqLevel: 50,
     cost: 700,
     dmg: 20,
@@ -465,7 +465,7 @@ const CYBORG_STAGES = [
   {
     lvl: 5,
     name: 'Железный дровосек',
-    icon: '🪓',
+    icon: 'https://raw.githubusercontent.com/Nikifikis/nikita-math/refs/heads/main/public/avatars/robot-lvl05..png',
     reqLevel: 75,
     cost: 1200,
     dmg: 30,
