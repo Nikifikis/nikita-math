@@ -499,7 +499,7 @@ const CYBORG_STAGES = [
   {
     lvl: 11,
     name: 'Стальной воин',
-    icon: '⚔️',
+    icon: 'https://raw.githubusercontent.com/Nikifikis/nikita-math/refs/heads/main/public/avatars/robot-lvl11.png',
     reqLevel: 350,
     cost: 15000,
     dmg: 170,
@@ -507,7 +507,7 @@ const CYBORG_STAGES = [
   {
     lvl: 12,
     name: 'Неоновый боец',
-    icon: '⚡',
+    icon: 'https://raw.githubusercontent.com/Nikifikis/nikita-math/refs/heads/main/public/avatars/robot-lvl12.png',
     reqLevel: 400,
     cost: 20000,
     dmg: 210,
@@ -515,7 +515,7 @@ const CYBORG_STAGES = [
   {
     lvl: 13,
     name: 'Хромированный страж',
-    icon: '🏍️',
+    icon: 'https://raw.githubusercontent.com/Nikifikis/nikita-math/refs/heads/main/public/avatars/robot-lvl13.png',
     reqLevel: 450,
     cost: 28000,
     dmg: 255,
@@ -523,7 +523,7 @@ const CYBORG_STAGES = [
   {
     lvl: 14,
     name: 'Плазменный убийца',
-    icon: '☄️',
+    icon: 'https://raw.githubusercontent.com/Nikifikis/nikita-math/refs/heads/main/public/avatars/robot-lvl14.png',
     reqLevel: 500,
     cost: 38000,
     dmg: 305,
@@ -531,7 +531,7 @@ const CYBORG_STAGES = [
   {
     lvl: 15,
     name: 'Титановый владыка',
-    icon: '🏛️',
+    icon: 'https://raw.githubusercontent.com/Nikifikis/nikita-math/refs/heads/main/public/avatars/robot-lvl15.png',
     reqLevel: 600,
     cost: 50000,
     dmg: 360,
@@ -539,7 +539,7 @@ const CYBORG_STAGES = [
   {
     lvl: 16,
     name: 'Кибер-ниндзя',
-    icon: '🥷',
+    icon: 'https://raw.githubusercontent.com/Nikifikis/nikita-math/refs/heads/main/public/avatars/robot-lvl16.png',
     reqLevel: 700,
     cost: 65000,
     dmg: 420,
@@ -547,7 +547,7 @@ const CYBORG_STAGES = [
   {
     lvl: 17,
     name: 'Квантовый призрак',
-    icon: '👻',
+    icon: 'https://raw.githubusercontent.com/Nikifikis/nikita-math/refs/heads/main/public/avatars/robot-lvl17.png',
     reqLevel: 800,
     cost: 85000,
     dmg: 490,
@@ -555,7 +555,7 @@ const CYBORG_STAGES = [
   {
     lvl: 18,
     name: 'Нано-богатырь',
-    icon: '🧬',
+    icon: 'https://raw.githubusercontent.com/Nikifikis/nikita-math/refs/heads/main/public/avatars/robot-lvl18.png',
     reqLevel: 900,
     cost: 110000,
     dmg: 570,
@@ -563,7 +563,7 @@ const CYBORG_STAGES = [
   {
     lvl: 19,
     name: 'Машина судного дня',
-    icon: '🌋',
+    icon: 'https://raw.githubusercontent.com/Nikifikis/nikita-math/refs/heads/main/public/avatars/robot-lvl19.png',
     reqLevel: 950,
     cost: 150000,
     dmg: 660,
@@ -571,7 +571,7 @@ const CYBORG_STAGES = [
   {
     lvl: 20,
     name: 'Абсолютный ИИ',
-    icon: '🌌',
+    icon: 'https://raw.githubusercontent.com/Nikifikis/nikita-math/refs/heads/main/public/avatars/robot-lvl20.png',
     reqLevel: 1000,
     cost: 200000,
     dmg: 800,
