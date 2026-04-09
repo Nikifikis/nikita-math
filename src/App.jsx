@@ -579,14 +579,14 @@ const CYBORG_STAGES = [
 ];
 
 const AVATARS = [
-  { id: 'default', name: 'Школьник', icon: 'https://raw.githubusercontent.com/Nikifikis/nikita-math/refs/heads/main/public/avatars/skincat.png', price: 0, currency: 'coins' },
-  { id: 'nerd', name: 'Ботаник', icon: 'https://raw.githubusercontent.com/Nikifikis/nikita-math/refs/heads/main/public/avatars/skin-nar.png', price: 500, currency: 'coins' },
-  { id: 'ninja', name: 'Ниндзя', icon: '🥷', price: 5000, currency: 'coins' },
-  { id: 'hero', name: 'Герой', icon: '🦸‍♂️', price: 15000, currency: 'coins' },
-  { id: 'wizard', name: 'Маг', icon: '🧙‍♂️', price: 50000, currency: 'coins' },
-  { id: 'robot', name: 'Андроид', icon: '🤖', price: 50, currency: 'gems' },
-  { id: 'vampire', name: 'Вампир', icon: '🧛‍♂️', price: 100, currency: 'gems' },
-  { id: 'dragon', name: 'Дракон', icon: '🐉', price: 200, currency: 'gems' },
+  { id: 'default', name: 'Кот', icon: 'https://raw.githubusercontent.com/Nikifikis/nikita-math/refs/heads/main/public/avatars/skincat.png', price: 0, currency: 'coins' },
+  { id: 'nerd', name: 'Наруто', icon: 'https://raw.githubusercontent.com/Nikifikis/nikita-math/refs/heads/main/public/avatars/skin-nar.png', price: 500, currency: 'coins' },
+  { id: 'ninja', name: 'Карамелька', icon: 'https://raw.githubusercontent.com/Nikifikis/nikita-math/refs/heads/main/public/avatars/skin-kar.png', price: 5000, currency: 'coins' },
+  { id: 'hero', name: 'Веном', icon: 'https://raw.githubusercontent.com/Nikifikis/nikita-math/refs/heads/main/public/avatars/skin-ven.png', price: 15000, currency: 'coins' },
+  { id: 'wizard', name: 'Пеппа', icon: 'https://raw.githubusercontent.com/Nikifikis/nikita-math/refs/heads/main/public/avatars/skin-pepe.png', price: 50000, currency: 'coins' },
+  { id: 'robot', name: 'Андроид', icon: 'https://raw.githubusercontent.com/Nikifikis/nikita-math/refs/heads/main/public/avatars/skin-smex.png', price: 50, currency: 'gems' },
+  { id: 'vampire', name: 'Шрек', icon: 'https://raw.githubusercontent.com/Nikifikis/nikita-math/refs/heads/main/public/avatars/skin-shrek.png', price: 100, currency: 'gems' },
+  { id: 'dragon', name: '67', icon: 'https://raw.githubusercontent.com/Nikifikis/nikita-math/refs/heads/main/public/avatars/skin-67.png', price: 200, currency: 'gems' },
   { id: 'king', name: 'Легенда', icon: 'https://raw.githubusercontent.com/Nikifikis/nikita-math/refs/heads/main/public/avatars/ksin-nik.png', price: 500, currency: 'gems' },
 ];
 
