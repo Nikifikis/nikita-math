@@ -387,7 +387,7 @@ const RAID_BOSSES = [
   {
     id: 'boss_1',
     name: 'Гоблин-Счетовод',
-    icon: '👺',
+    icon: 'https://raw.githubusercontent.com/Nikifikis/nikita-math/refs/heads/main/public/avatars/boss-lvl1.png',
     hp: 5000,
     league: 'Бронзовая Лига',
     bg: 'bg-orange-900/20',
@@ -397,7 +397,7 @@ const RAID_BOSSES = [
   {
     id: 'boss_2',
     name: 'Кибер-Орк',
-    icon: '👹',
+    icon: 'https://raw.githubusercontent.com/Nikifikis/nikita-math/refs/heads/main/public/avatars/Boss-lvl2.png',
     hp: 25000,
     league: 'Серебряная Лига',
     bg: 'bg-gray-800/40',
@@ -407,7 +407,7 @@ const RAID_BOSSES = [
   {
     id: 'boss_3',
     name: 'Меха-Дракон',
-    icon: '🐲',
+    icon: 'https://raw.githubusercontent.com/Nikifikis/nikita-math/refs/heads/main/public/avatars/boss-lvl3.png',
     hp: 100000,
     league: 'Золотая Лига',
     bg: 'bg-yellow-900/20',
@@ -417,7 +417,7 @@ const RAID_BOSSES = [
   {
     id: 'boss_4',
     name: 'Разрушитель Миров',
-    icon: '🌋',
+    icon: 'https://raw.githubusercontent.com/Nikifikis/nikita-math/refs/heads/main/public/avatars/boss-lvl4.png',
     hp: 500000,
     league: 'Лига Мастеров',
     bg: 'bg-purple-900/20',
@@ -427,7 +427,7 @@ const RAID_BOSSES = [
   {
     id: 'boss_5',
     name: 'Абсолютный ИИ',
-    icon: '👁️‍🗨️',
+    icon: 'https://raw.githubusercontent.com/Nikifikis/nikita-math/refs/heads/main/public/avatars/boss-lvl5.png',
     hp: 2000000,
     league: 'Легендарная Лига',
     bg: 'bg-red-900/20',
@@ -3019,7 +3019,21 @@ function MainApp() {
                     : 'bg-neutral-900 border-neutral-800 opacity-50 cursor-not-allowed'
                 }`}
               >
-                <div className="text-6xl">{isUnlocked ? boss.icon : '🔒'}</div>
+<div className="w-28 h-28 flex items-center justify-center shrink-0">
+  {isUnlocked ? (
+    String(boss.icon).startsWith('/') || String(boss.icon).startsWith('http') ? (
+      <img
+        src={boss.icon}
+        alt={boss.name}
+        className="w-full h-full object-contain drop-shadow-[0_0_25px_rgba(239,68,68,0.8)]"
+      />
+    ) : (
+      <div className="text-7xl drop-shadow-[0_0_15px_rgba(239,68,68,0.5)]">{boss.icon}</div>
+    )
+  ) : (
+    <div className="text-7xl opacity-50">🔒</div>
+  )}
+</div>
                 <div className="flex-1">
                   <div className="text-xs font-bold text-neutral-400 uppercase tracking-widest">
                     {boss.league}
