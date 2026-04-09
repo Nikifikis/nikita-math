@@ -3019,19 +3019,19 @@ function MainApp() {
                     : 'bg-neutral-900 border-neutral-800 opacity-50 cursor-not-allowed'
                 }`}
               >
-<div className="w-28 h-28 flex items-center justify-center shrink-0">
+<div className="w-32 h-40 flex items-center justify-center shrink-0">
   {isUnlocked ? (
     String(boss.icon).startsWith('/') || String(boss.icon).startsWith('http') ? (
-      <img
-        src={boss.icon}
-        alt={boss.name}
-        className="w-full h-full object-contain drop-shadow-[0_0_25px_rgba(239,68,68,0.8)]"
+      <img 
+        src={boss.icon} 
+        alt={boss.name} 
+        className="w-full h-full object-contain scale-125 drop-shadow-[0_0_30px_rgba(239,68,68,0.9)]" 
       />
     ) : (
-      <div className="text-7xl drop-shadow-[0_0_15px_rgba(239,68,68,0.5)]">{boss.icon}</div>
+      <div className="text-8xl drop-shadow-[0_0_15px_rgba(239,68,68,0.5)]">{boss.icon}</div>
     )
   ) : (
-    <div className="text-7xl opacity-50">🔒</div>
+    <div className="text-8xl opacity-50">🔒</div>
   )}
 </div>
                 <div className="flex-1">
