@@ -3019,7 +3019,7 @@ function MainApp() {
                     : 'bg-neutral-900 border-neutral-800 opacity-50 cursor-not-allowed'
                 }`}
               >
-<div className="w-32 h-40 flex items-center justify-center shrink-0">
+<div className="w-40 h-40 flex items-center justify-center shrink-0">
   {isUnlocked ? (
     String(boss.icon).startsWith('/') || String(boss.icon).startsWith('http') ? (
       <img 
@@ -3078,7 +3078,19 @@ function MainApp() {
             </button>
           </div>
           <div className="text-center mb-8">
-            <div className="text-5xl mb-2">{selectedBoss.icon}</div>
+          <div className="flex justify-center items-center mb-8 shrink-0">
+  {String(selectedBoss.icon).startsWith('/') || String(selectedBoss.icon).startsWith('http') ? (
+    <img 
+      src={selectedBoss.icon} 
+      alt={selectedBoss.name} 
+      className="w-32 h-32 object-contain scale-125 drop-shadow-[0_0_30px_rgba(239,68,68,0.9)]" 
+    />
+  ) : (
+    <div className="text-7xl mb-2 drop-shadow-[0_0_15px_rgba(239,68,68,0.5)]">
+      {selectedBoss.icon}
+    </div>
+  )}
+</div>
             <h2 className="text-3xl md:text-4xl font-black text-red-500 uppercase tracking-tighter">
               Цель: {selectedBoss.name}
             </h2>
@@ -3367,13 +3379,25 @@ function MainApp() {
               <div className="absolute inset-0 bg-red-500/5 animate-pulse pointer-events-none"></div>
             )}
             <div className="flex flex-col sm:flex-row items-center gap-6">
-              <div
-                className={`text-7xl sm:text-8xl transition-transform ${
-                  isDefeated ? 'opacity-50 grayscale' : 'animate-bounce'
-                }`}
-              >
-                {selectedBoss.icon}
-              </div>
+            <div
+  className={`flex justify-center items-center shrink-0 w-34 h-34 transition-all duration-500 pointer-events-none ${
+    isDefeated ? 'opacity-50 grayscale scale-90' : 'animate-pulse scale-125'
+  }`}
+>
+  {String(selectedBoss.icon).startsWith('/') || String(selectedBoss.icon).startsWith('http') ? (
+    <img
+      src={selectedBoss.icon}
+      alt={selectedBoss.name}
+      className={`w-full h-full object-contain ${
+        isDefeated ? '' : 'drop-shadow-[0_0_40px_rgba(239,68,68,0.9)]'
+      }`}
+    />
+  ) : (
+    <div className={`text-8xl ${isDefeated ? '' : 'drop-shadow-[0_0_20px_rgba(239,68,68,0.6)]'}`}>
+      {selectedBoss.icon}
+    </div>
+  )}
+</div>
               <div className="flex-1 w-full text-center sm:text-left">
                 <h2
                   className={`text-2xl sm:text-3xl font-black mb-2 ${
