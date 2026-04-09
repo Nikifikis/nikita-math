@@ -579,15 +579,15 @@ const CYBORG_STAGES = [
 ];
 
 const AVATARS = [
-  { id: 'default', name: 'Школьник', icon: '👤', price: 0, currency: 'coins' },
-  { id: 'nerd', name: 'Ботаник', icon: '🤓', price: 500, currency: 'coins' },
+  { id: 'default', name: 'Школьник', icon: 'https://raw.githubusercontent.com/Nikifikis/nikita-math/refs/heads/main/public/avatars/skincat.png', price: 0, currency: 'coins' },
+  { id: 'nerd', name: 'Ботаник', icon: 'https://raw.githubusercontent.com/Nikifikis/nikita-math/refs/heads/main/public/avatars/skin-nar.png', price: 500, currency: 'coins' },
   { id: 'ninja', name: 'Ниндзя', icon: '🥷', price: 5000, currency: 'coins' },
   { id: 'hero', name: 'Герой', icon: '🦸‍♂️', price: 15000, currency: 'coins' },
   { id: 'wizard', name: 'Маг', icon: '🧙‍♂️', price: 50000, currency: 'coins' },
   { id: 'robot', name: 'Андроид', icon: '🤖', price: 50, currency: 'gems' },
   { id: 'vampire', name: 'Вампир', icon: '🧛‍♂️', price: 100, currency: 'gems' },
   { id: 'dragon', name: 'Дракон', icon: '🐉', price: 200, currency: 'gems' },
-  { id: 'king', name: 'Легенда', icon: '👑', price: 500, currency: 'gems' },
+  { id: 'king', name: 'Легенда', icon: 'https://raw.githubusercontent.com/Nikifikis/nikita-math/refs/heads/main/public/avatars/ksin-nik.png', price: 500, currency: 'gems' },
 ];
 
 const SUPER_IMPLANTS = [
@@ -2533,9 +2533,19 @@ function MainApp() {
     return (
       <div className="min-h-[100dvh] bg-black text-yellow-400 p-4 sm:p-6 flex flex-col items-center justify-center font-sans relative">
         <div className="absolute top-4 left-4 flex flex-col items-center bg-neutral-900 border border-neutral-800 rounded-2xl py-2 px-3 shadow-lg">
-          <span className="text-3xl">
-            {getAvatarIcon(equippedAvatar || 'default')}
-          </span>
+        <div className="flex justify-center items-center w-12 h-12 shrink-0">
+  {String(getAvatarIcon(equippedAvatar || 'default')).startsWith('/') || String(getAvatarIcon(equippedAvatar || 'default')).startsWith('http') ? (
+    <img 
+      src={getAvatarIcon(equippedAvatar || 'default')} 
+      alt="Аватар" 
+      className="w-full h-full object-contain drop-shadow-md scale-125" 
+    />
+  ) : (
+    <span className="text-3xl drop-shadow-sm">
+      {getAvatarIcon(equippedAvatar || 'default')}
+    </span>
+  )}
+</div>
         </div>
         {user && (
           <div className="absolute top-4 right-4 flex flex-col items-end bg-neutral-900 border border-neutral-800 rounded-2xl py-2 px-4 shadow-lg">
@@ -2946,7 +2956,17 @@ function MainApp() {
                         : 'border-neutral-800'
                     }`}
                   >
-                    <div className="text-5xl mb-2">{avatar.icon}</div>
+<div className="flex justify-center items-center mb-2 h-16 shrink-0">
+  {String(avatar.icon).startsWith('/') || String(avatar.icon).startsWith('http') ? (
+    <img 
+      src={avatar.icon} 
+      alt={avatar.name} 
+      className="w-16 h-16 object-contain drop-shadow-md scale-110" 
+    />
+  ) : (
+    <div className="text-5xl mb-2">{avatar.icon}</div>
+  )}
+</div>
                     <div className="font-bold text-sm text-white mb-2">
                       {avatar.name}
                     </div>
