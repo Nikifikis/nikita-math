@@ -579,7 +579,7 @@ const CYBORG_STAGES = [
 ];
 
 const AVATARS = [
-  { id: 'default', name: 'Кот', icon: 'https://raw.githubusercontent.com/Nikifikis/nikita-math/refs/heads/main/public/avatars/skincat.png', price: 0, currency: 'coins' },
+  { id: 'default', name: 'Кот-обормот', icon: 'https://raw.githubusercontent.com/Nikifikis/nikita-math/refs/heads/main/public/avatars/skincat.png', price: 0, currency: 'coins' },
   { id: 'nerd', name: 'Наруто', icon: 'https://raw.githubusercontent.com/Nikifikis/nikita-math/refs/heads/main/public/avatars/skin-nar.png', price: 500, currency: 'coins' },
   { id: 'ninja', name: 'Карамелька', icon: 'https://raw.githubusercontent.com/Nikifikis/nikita-math/refs/heads/main/public/avatars/skin-kar.png', price: 5000, currency: 'coins' },
   { id: 'hero', name: 'Веном', icon: 'https://raw.githubusercontent.com/Nikifikis/nikita-math/refs/heads/main/public/avatars/skin-ven.png', price: 15000, currency: 'coins' },
