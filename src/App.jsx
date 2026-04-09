@@ -4878,9 +4878,19 @@ function MainApp() {
                               isMe ? 'text-white' : 'text-yellow-400'
                             }`}
                           >
-                            <span className="text-3xl mr-1">
-                              {getAvatarIcon(student.avatar)}
-                            </span>
+                            <div className="flex justify-center items-center w-8 h-8 shrink-0 mr-1">
+  {String(getAvatarIcon(student.avatar)).startsWith('/') || String(getAvatarIcon(student.avatar)).startsWith('http') ? (
+    <img 
+      src={getAvatarIcon(student.avatar)} 
+      alt="Аватар" 
+      className="w-full h-full object-contain drop-shadow-sm scale-125" 
+    />
+  ) : (
+    <span className="text-3xl drop-shadow-sm">
+      {getAvatarIcon(student.avatar)}
+    </span>
+  )}
+</div>
                             <span className="text-xl hidden sm:inline">
                               {sRank.icon}
                             </span>{' '}
