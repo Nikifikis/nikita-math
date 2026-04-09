@@ -581,13 +581,13 @@ const CYBORG_STAGES = [
 const AVATARS = [
   { id: 'default', name: 'Школьник', icon: '👤', price: 0, currency: 'coins' },
   { id: 'nerd', name: 'Ботаник', icon: '🤓', price: 500, currency: 'coins' },
-  { id: 'ninja', name: 'Ниндзя', icon: '🥷', price: 1500, currency: 'coins' },
-  { id: 'hero', name: 'Герой', icon: '🦸‍♂️', price: 3000, currency: 'coins' },
-  { id: 'wizard', name: 'Маг', icon: '🧙‍♂️', price: 5000, currency: 'coins' },
-  { id: 'robot', name: 'Андроид', icon: '🤖', price: 5, currency: 'gems' },
-  { id: 'vampire', name: 'Вампир', icon: '🧛‍♂️', price: 15, currency: 'gems' },
-  { id: 'dragon', name: 'Дракон', icon: '🐉', price: 30, currency: 'gems' },
-  { id: 'king', name: 'Легенда', icon: '👑', price: 50, currency: 'gems' },
+  { id: 'ninja', name: 'Ниндзя', icon: '🥷', price: 5000, currency: 'coins' },
+  { id: 'hero', name: 'Герой', icon: '🦸‍♂️', price: 15000, currency: 'coins' },
+  { id: 'wizard', name: 'Маг', icon: '🧙‍♂️', price: 50000, currency: 'coins' },
+  { id: 'robot', name: 'Андроид', icon: '🤖', price: 50, currency: 'gems' },
+  { id: 'vampire', name: 'Вампир', icon: '🧛‍♂️', price: 100, currency: 'gems' },
+  { id: 'dragon', name: 'Дракон', icon: '🐉', price: 200, currency: 'gems' },
+  { id: 'king', name: 'Легенда', icon: '👑', price: 500, currency: 'gems' },
 ];
 
 const SUPER_IMPLANTS = [
