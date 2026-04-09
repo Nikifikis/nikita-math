@@ -1474,35 +1474,17 @@ function MainApp() {
     let newInventory = [...(inventory || [])];
     let safeCoins = coins || 0;
     let safeGems = gems || 0;
+
     if (type === 'daily') {
+      // 🎁 Ежедневный сундук
       setLastDailyChest(Date.now());
       safeSave({ lastDailyChest: Date.now() });
       if (rng < 0.7) {
-        cAdd = 150;
-        rewardTitle = '150 Монет';
-      } else if (rng < 0.95) {
-        gAdd = 1;
-        rewardTitle = '1 Кристалл';
-      } else {
-        gAdd = 5;
-        rewardTitle = 'ДЖЕКПОТ! 5 Кристаллов';
-      }
-      setRewardModal({
-        title: 'Ежедневный сундук',
-        reward: rewardTitle,
-        icon: '🎁',
-      });
-    } else if (type === 'normal' && safeCoins >= 100) {
-      cAdd = -100;
-      if (rng < 0.6) {
-        cAdd += 120;
-        rewardTitle = 'Окупился! +120 Монет';
-      } else if (rng < 0.8) {
-        cAdd += 50;
-        rewardTitle = 'Не повезло... +50 Монет';
-      } else if (rng < 0.95) {
-        gAdd += 1;
-        rewardTitle = 'Редкий дроп! +1 Кристалл';
+        cAdd = 100;
+        rewardTitle = '100 Монет';
+      } else if (rng < 0.98) {
+        cAdd = 250;
+        rewardTitle = 'Удача! 250 Монет';
       } else {
         const coinAvatars = AVATARS.filter(
           (a) => a.currency === 'coins' && a.id !== 'default'
@@ -1511,25 +1493,61 @@ function MainApp() {
           coinAvatars[Math.floor(Math.random() * coinAvatars.length)];
         if (!newInventory.includes(randomAvatar.id)) {
           newInventory.push(randomAvatar.id);
-          rewardTitle = `Новый Аватар: ${randomAvatar.name}!`;
+          rewardTitle = `СУПЕР ДРОП: ${randomAvatar.name}!`;
         } else {
-          gAdd += 2;
-          rewardTitle = 'Аватар уже есть. Компенсация: +2 Кристалла';
+          cAdd += 500;
+          rewardTitle = 'Аватар уже есть. Компенсация: +500 Монет';
         }
+      }
+      setRewardModal({
+        title: 'Ежедневный сундук',
+        reward: rewardTitle,
+        icon: '🎁',
+      });
+
+    } else if (type === 'normal' && safeCoins >= 100) {
+      // 📦 Обычный сундук (Стоит 100 монет)
+      cAdd = -100; 
+      
+      if (rng < 0.02) { 
+        // 💎 2% шанс - ЛЕГЕНДАРНЫЙ ДРОП ГЕМОВ
+        gAdd += 5; 
+        rewardTitle = '💎 ЛЕГЕНДАРНЫЙ ДРОП! +5 Гемов!';
+      } else if (rng < 0.05) { 
+        // 👕 3% шанс - Скины
+        const coinAvatars = AVATARS.filter((a) => a.currency === 'coins' && a.id !== 'default');
+        const randomAvatar = coinAvatars[Math.floor(Math.random() * coinAvatars.length)];
+        if (!newInventory.includes(randomAvatar.id)) {
+          newInventory.push(randomAvatar.id);
+          rewardTitle = `НОВЫЙ АВАТАР: ${randomAvatar.name}!`;
+        } else {
+          cAdd += 500; 
+          rewardTitle = 'Аватар уже есть. Компенсация: +500 Монет';
+        }
+      } else if (rng < 0.60) {
+        // 📉 55% шанс - Убыток
+        cAdd += 30; // Итог: -70 монет
+        rewardTitle = 'Не повезло... +30 Монет';
+      } else {
+        // 📈 40% шанс - Окупился
+        cAdd += 150; // Итог: +50 монет
+        rewardTitle = 'Отличный лут! +150 Монет';
       }
       setRewardModal({
         title: 'Обычный сундук',
         reward: rewardTitle,
-        icon: '📦',
+        icon: rng < 0.02 ? '💎' : '📦', // Иконка меняется при выпадении гемов!
       });
+
     } else if (type === 'epic' && safeGems >= 10) {
+      // ✨ Эпический сундук (Стоит 10 гемов)
       gAdd = -10;
-      if (rng < 0.5) {
+      if (rng < 0.7) {
         cAdd += 1000;
         rewardTitle = 'Гора Золота! +1000 Монет';
-      } else if (rng < 0.8) {
-        gAdd += 15;
-        rewardTitle = 'Прибыль! +15 Кристаллов';
+      } else if (rng < 0.95) {
+        cAdd += 3000;
+        rewardTitle = 'БЕЗУМИЕ! +3000 Монет';
       } else {
         const gemAvatars = AVATARS.filter((a) => a.currency === 'gems');
         const randomAvatar =
@@ -1538,8 +1556,8 @@ function MainApp() {
           newInventory.push(randomAvatar.id);
           rewardTitle = `ЭПИЧЕСКИЙ АВАТАР: ${randomAvatar.name}!`;
         } else {
-          gAdd += 10;
-          rewardTitle = 'Аватар уже есть. Компенсация: +10 Кристаллов';
+          cAdd += 5000;
+          rewardTitle = 'Аватар уже есть. Компенсация: +5000 Монет';
         }
       }
       setRewardModal({
@@ -1550,7 +1568,6 @@ function MainApp() {
     } else {
       return;
     }
-
     const finalCoins = safeCoins + cAdd;
     const finalGems = safeGems + gAdd;
     setCoins(finalCoins);
