@@ -1009,6 +1009,8 @@ function MainApp() {
   const [rewardModal, setRewardModal] = useState(null);
 
   const [currentTime, setCurrentTime] = useState(new Date());
+  const pendingUpdates = useRef({});
+  const saveTimer = useRef(null);
 
   // --- РЕЙДЫ ---
   const [selectedBoss, setSelectedBoss] = useState(null);
@@ -1279,58 +1281,63 @@ function MainApp() {
     }
   }, [view, activeRaidId]);
 
-  const safeSave = (updates) => {
+  const safeSave = (updates, isUrgent = false) => {
+    // 1. ЛОКАЛЬНЫЙ БЭКАП (Моментально сохраняем в браузере ВСЕГДА)
+    try {
+      if (updates.unlockedLevel1 !== undefined) localStorage.setItem('nikitaMathLevel1', updates.unlockedLevel1);
+      if (updates.unlockedLevel2 !== undefined) localStorage.setItem('nikitaMathLevel2', updates.unlockedLevel2);
+      if (updates.campaignPace !== undefined) localStorage.setItem('nikitaMathPace', updates.campaignPace);
+      if (updates.score !== undefined) localStorage.setItem('nikitaMathScore', updates.score);
+      if (updates.coins !== undefined) localStorage.setItem('nikitaMathCoins', updates.coins);
+      if (updates.gems !== undefined) localStorage.setItem('nikitaMathGems', updates.gems);
+      if (updates.inventory !== undefined) localStorage.setItem('nikitaMathInventory', JSON.stringify(updates.inventory || []));
+      if (updates.equippedAvatar !== undefined) localStorage.setItem('nikitaMathEquipped', updates.equippedAvatar);
+      if (updates.cyborgLevel !== undefined) localStorage.setItem('nikitaMathCyborgLvl', updates.cyborgLevel);
+      if (updates.ownedImplants !== undefined) localStorage.setItem('nikitaMathImplants', JSON.stringify(updates.ownedImplants || []));
+      if (updates.lastDailyChest !== undefined) localStorage.setItem('nikitaMathLastDaily', updates.lastDailyChest);
+      if (updates.claimedRaids !== undefined) localStorage.setItem('nikitaMathClaimedRaids', JSON.stringify(updates.claimedRaids || []));
+      if (updates.history !== undefined) {
+        localStorage.setItem(
+          'nikitaMathHistory', 
+          Array.isArray(updates.history) ? JSON.stringify(updates.history) : '[]'
+        );
+      }
+    } catch (e) {
+      console.error('Ошибка сохранения в localStorage', e);
+    }
+
+    // 2. ОНЛАЙН РЕЖИМ (Умное сохранение в Firebase с корзиной)
     if (isCloudEnabled && user) {
-      db.collection('artifacts')
-        .doc(APP_ID)
-        .collection('users')
-        .doc(user.uid)
-        .set(updates, { merge: true })
-        .catch((e) => console.error(e));
-    } else {
-      try {
-        if (updates.unlockedLevel1 !== undefined)
-          localStorage.setItem('nikitaMathLevel1', updates.unlockedLevel1);
-        if (updates.unlockedLevel2 !== undefined)
-          localStorage.setItem('nikitaMathLevel2', updates.unlockedLevel2);
-        if (updates.campaignPace !== undefined)
-          localStorage.setItem('nikitaMathPace', updates.campaignPace);
-        if (updates.score !== undefined)
-          localStorage.setItem('nikitaMathScore', updates.score);
-        if (updates.coins !== undefined)
-          localStorage.setItem('nikitaMathCoins', updates.coins);
-        if (updates.gems !== undefined)
-          localStorage.setItem('nikitaMathGems', updates.gems);
-        if (updates.inventory !== undefined)
-          localStorage.setItem(
-            'nikitaMathInventory',
-            JSON.stringify(updates.inventory || [])
-          );
-        if (updates.equippedAvatar !== undefined)
-          localStorage.setItem('nikitaMathEquipped', updates.equippedAvatar);
-        if (updates.cyborgLevel !== undefined)
-          localStorage.setItem('nikitaMathCyborgLvl', updates.cyborgLevel);
-        if (updates.ownedImplants !== undefined)
-          localStorage.setItem(
-            'nikitaMathImplants',
-            JSON.stringify(updates.ownedImplants || [])
-          );
-        if (updates.lastDailyChest !== undefined)
-          localStorage.setItem('nikitaMathLastDaily', updates.lastDailyChest);
-        if (updates.claimedRaids !== undefined)
-          localStorage.setItem(
-            'nikitaMathClaimedRaids',
-            JSON.stringify(updates.claimedRaids || [])
-          );
-        if (updates.history !== undefined)
-          localStorage.setItem(
-            'nikitaMathHistory',
-            Array.isArray(updates.history)
-              ? JSON.stringify(updates.history)
-              : '[]'
-          );
-      } catch (e) {
-        console.error('Ошибка сохранения в localStorage', e);
+      // Складываем новые данные в "корзину"
+      pendingUpdates.current = { ...pendingUpdates.current, ...updates };
+
+      // Сбрасываем старый таймер, если он был
+      if (saveTimer.current) {
+        clearTimeout(saveTimer.current);
+      }
+
+      // Если срочно (покупка в магазине) - отправляем корзину мгновенно
+      if (isUrgent) {
+        db.collection('artifacts')
+          .doc(APP_ID)
+          .collection('users')
+          .doc(user.uid)
+          .set(pendingUpdates.current, { merge: true })
+          .catch((e) => console.error(e));
+        
+        pendingUpdates.current = {}; // Очищаем корзину после отправки
+      } else {
+        // Иначе ждем 10 секунд. Если решат еще пример - таймер обнулится.
+        saveTimer.current = setTimeout(() => {
+          db.collection('artifacts')
+            .doc(APP_ID)
+            .collection('users')
+            .doc(user.uid)
+            .set(pendingUpdates.current, { merge: true })
+            .catch((e) => console.error(e));
+          
+          pendingUpdates.current = {}; // Очищаем корзину после отправки
+        }, 10000); // 10 секунд задержки
       }
     }
   };
