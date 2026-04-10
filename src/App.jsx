@@ -1412,9 +1412,11 @@ function MainApp() {
   const handleBuyAvatar = (avatar) => {
     const safeInventory = inventory || [];
     if (safeInventory.includes(avatar.id)) return;
+    
     let canAfford = false;
     let newCoins = coins || 0;
     let newGems = gems || 0;
+    
     if (avatar.currency === 'coins' && newCoins >= avatar.price) {
       newCoins -= avatar.price;
       canAfford = true;
@@ -1422,12 +1424,16 @@ function MainApp() {
       newGems -= avatar.price;
       canAfford = true;
     }
+    
     if (canAfford) {
       const newInventory = [...safeInventory, avatar.id];
       setCoins(newCoins);
       setGems(newGems);
       setInventory(newInventory);
-      safeSave({ coins: newCoins, gems: newGems, inventory: newInventory });
+      
+      // 🔥 ВОТ ТУТ МЫ ДОБАВИЛИ true ДЛЯ МОМЕНТАЛЬНОГО СОХРАНЕНИЯ:
+      safeSave({ coins: newCoins, gems: newGems, inventory: newInventory }, true);
+      
       updatePublicProfile(
         unlockedLevel1,
         unlockedLevel2,
@@ -1435,8 +1441,8 @@ function MainApp() {
         score,
         newCoins,
         newGems,
-        equippedAvatar
-        true
+        equippedAvatar,
+        true // Срочное обновление рейтинга
       );
     }
   };
