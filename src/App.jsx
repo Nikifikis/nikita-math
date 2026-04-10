@@ -1339,7 +1339,7 @@ function MainApp() {
             .catch((e) => console.error(e));
           
           pendingUpdates.current = {}; // Очищаем корзину после отправки
-        }, 10000); // 10 секунд задержки
+        }, 60000); // 60 секунд задержки
       }
     }
   };
