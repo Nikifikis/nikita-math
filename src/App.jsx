@@ -1436,6 +1436,7 @@ function MainApp() {
         newCoins,
         newGems,
         equippedAvatar
+        true
       );
     }
   };
