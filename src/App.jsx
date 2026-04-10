@@ -1011,6 +1011,8 @@ function MainApp() {
   const [currentTime, setCurrentTime] = useState(new Date());
   const pendingUpdates = useRef({});
   const saveTimer = useRef(null);
+  const pendingPublicUpdates = useRef({});
+  const publicSaveTimer = useRef(null);
 
   // --- РЕЙДЫ ---
   const [selectedBoss, setSelectedBoss] = useState(null);
@@ -1349,31 +1351,61 @@ function MainApp() {
     newScore,
     newCoins,
     newGems,
-    newAvatar
+    newAvatar,
+    isUrgent = false // <-- Добавили флаг СРОЧНО
   ) => {
     if (isCloudEnabled && user && role === 'student') {
       const username = user.email.split('@')[0];
-      db.collection('artifacts')
-        .doc(APP_ID)
-        .collection('public')
-        .doc('data')
-        .collection('profiles')
-        .doc(username)
-        .set(
-          {
-            username: username,
-            unlockedLevel: level1 || 1,
-            unlockedLevel2: level2 || 1,
-            campaignPace: pace || 10,
-            score: newScore || 0,
-            coins: newCoins || 0,
-            gems: newGems || 0,
-            avatar: newAvatar || equippedAvatar,
-            lastActive: Date.now(),
-          },
-          { merge: true }
-        )
-        .catch((e) => console.error(e));
+
+      // 1. Формируем свежие данные
+      const newData = {
+        username: username,
+        unlockedLevel: level1 || 1,
+        unlockedLevel2: level2 || 1,
+        campaignPace: pace || 10,
+        score: newScore || 0,
+        coins: newCoins || 0,
+        gems: newGems || 0,
+        avatar: newAvatar || equippedAvatar,
+        lastActive: Date.now(),
+      };
+
+      // 2. Складываем в "публичную корзину"
+      pendingPublicUpdates.current = { ...pendingPublicUpdates.current, ...newData };
+
+      // 3. Сбрасываем старый таймер
+      if (publicSaveTimer.current) {
+        clearTimeout(publicSaveTimer.current);
+      }
+
+      // 4. Умная отправка
+      if (isUrgent) {
+        // Если покупка в магазине - отправляем сразу!
+        db.collection('artifacts')
+          .doc(APP_ID)
+          .collection('public')
+          .doc('data')
+          .collection('profiles')
+          .doc(username)
+          .set(pendingPublicUpdates.current, { merge: true })
+          .catch((e) => console.error(e));
+        
+        pendingPublicUpdates.current = {}; // Очищаем корзину
+      } else {
+        // Если просто решил пример - ждем 10 секунд и отправляем пачкой!
+        publicSaveTimer.current = setTimeout(() => {
+          db.collection('artifacts')
+            .doc(APP_ID)
+            .collection('public')
+            .doc('data')
+            .collection('profiles')
+            .doc(username)
+            .set(pendingPublicUpdates.current, { merge: true })
+            .catch((e) => console.error(e));
+          
+          pendingPublicUpdates.current = {}; // Очищаем корзину
+        }, 10000);
+      }
     }
   };
 
