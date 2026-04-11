@@ -388,7 +388,7 @@ const RAID_BOSSES = [
     id: 'boss_1',
     name: 'Гоблин-Счетовод',
     icon: 'https://raw.githubusercontent.com/Nikifikis/nikita-math/refs/heads/main/public/avatars/boss-lvl1.png',
-    hp: 5000,
+    hp: 25000,
     league: 'Бронзовая Лига',
     bg: 'bg-orange-900/20',
     border: 'border-orange-500/50',
@@ -398,7 +398,7 @@ const RAID_BOSSES = [
     id: 'boss_2',
     name: 'Кибер-Орк',
     icon: 'https://raw.githubusercontent.com/Nikifikis/nikita-math/refs/heads/main/public/avatars/Boss-lvl2.png',
-    hp: 25000,
+    hp: 50000,
     league: 'Серебряная Лига',
     bg: 'bg-gray-800/40',
     border: 'border-gray-500/50',
@@ -1743,8 +1743,8 @@ function MainApp() {
         (raidRooms || []).find((r) => r.id === roomId) || {
           id: roomId,
           bossId: selectedBoss?.id,
-          bossMaxHp: selectedBoss?.hp || 5000,
-          bossHp: selectedBoss?.hp || 5000,
+          bossMaxHp: selectedBoss?.hp || 50000,
+          bossHp: selectedBoss?.hp || 50000,
           participants: {},
           name: 'Локальный отряд',
         };
@@ -3423,23 +3423,23 @@ function MainApp() {
     const isDragon = selectedBoss.id === 'boss_3';
     const isDestroyer = selectedBoss.id === 'boss_4';
     let coinBase = isGoblin
-      ? 100
+      ? 500
       : isOrc
-      ? 300
-      : isDragon
       ? 1000
-      : isDestroyer
-      ? 3000
-      : 10000;
-    let gemBase = isGoblin
-      ? 1
-      : isOrc
-      ? 2
       : isDragon
-      ? 5
+      ? 5000
       : isDestroyer
-      ? 15
-      : 50;
+      ? 10000
+      : 50000;
+    let gemBase = isGoblin
+      ? 3
+      : isOrc
+      ? 5
+      : isDragon
+      ? 10
+      : isDestroyer
+      ? 30
+      : 60;
 
     let myExpectedReward = 'Нет урона = нет лута';
     if (myDamage > 0) {
