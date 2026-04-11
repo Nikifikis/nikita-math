@@ -1339,7 +1339,7 @@ function MainApp() {
             .catch((e) => console.error(e));
           
           pendingUpdates.current = {}; // Очищаем корзину после отправки
-        }, 60000); // 60 секунд задержки
+        }, 20000); // 20 секунд задержки
       }
     }
   };
@@ -1522,9 +1522,29 @@ function MainApp() {
     let safeGems = gems || 0;
 
     if (type === 'daily') {
-      // 🎁 Ежедневный сундук
-      setLastDailyChest(Date.now());
-      safeSave({ lastDailyChest: Date.now() });
+      // 🎁 Ежедневный сундук (Лимит 5 в день)
+      const today = new Date().toLocaleDateString();
+      let currentCount = 0;
+      
+      // Проверяем старое значение: если дата совпадает с сегодняшней, берем счетчик
+      if (lastDailyChest && typeof lastDailyChest === 'string' && lastDailyChest.startsWith(today)) {
+        currentCount = parseInt(lastDailyChest.split('|')[1]) || 0;
+      }
+      
+      // БЛОКИРУЕМ ОТКРЫТИЕ, ЕСЛИ ЛИМИТ ИСЧЕРПАН
+      if (currentCount >= 5) {
+        alert('Лимит исчерпан! Вы уже открыли 5 ежедневных сундуков сегодня.');
+        return; // Останавливаем выполнение функции
+      }
+      
+      // Обновляем состояние счетчика (например: "11.04.2026|1")
+      const newDailyState = `${today}|${currentCount + 1}`;
+      setLastDailyChest(newDailyState);
+      
+      // ВАЖНО: Моментально сохраняем новый счетчик в базу
+      safeSave({ lastDailyChest: newDailyState }, true);
+
+      // --- ТВОЯ СТАРАЯ ЛОГИКА ДРОПА ---
       if (rng < 0.7) {
         cAdd = 100;
         rewardTitle = '100 Монет';
@@ -1532,11 +1552,8 @@ function MainApp() {
         cAdd = 250;
         rewardTitle = 'Удача! 250 Монет';
       } else {
-        const coinAvatars = AVATARS.filter(
-          (a) => a.currency === 'coins' && a.id !== 'default'
-        );
-        const randomAvatar =
-          coinAvatars[Math.floor(Math.random() * coinAvatars.length)];
+        const coinAvatars = AVATARS.filter((a) => a.currency === 'coins' && a.id !== 'default');
+        const randomAvatar = coinAvatars[Math.floor(Math.random() * coinAvatars.length)];
         if (!newInventory.includes(randomAvatar.id)) {
           newInventory.push(randomAvatar.id);
           rewardTitle = `СУПЕР ДРОП: ${randomAvatar.name}!`;
@@ -1545,12 +1562,12 @@ function MainApp() {
           rewardTitle = 'Аватар уже есть. Компенсация: +500 Монет';
         }
       }
+      
       setRewardModal({
         title: 'Ежедневный сундук',
         reward: rewardTitle,
         icon: '🎁',
       });
-
     } else if (type === 'normal' && safeCoins >= 100) {
       // 📦 Обычный сундук (Стоит 100 монет)
       cAdd = -100; 
@@ -1619,7 +1636,8 @@ function MainApp() {
     setCoins(finalCoins);
     setGems(finalGems);
     setInventory(newInventory);
-    safeSave({ coins: finalCoins, gems: finalGems, inventory: newInventory });
+    safeSave({ coins: finalCoins, gems: finalGems, inventory: newInventory }, true); // <--- ДОБАВИЛИ true
+
     updatePublicProfile(
       unlockedLevel1,
       unlockedLevel2,
@@ -1627,7 +1645,8 @@ function MainApp() {
       score,
       finalCoins,
       finalGems,
-      equippedAvatar
+      equippedAvatar,
+      true // <--- ДОБАВИЛИ true
     );
   };
 
