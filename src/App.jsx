@@ -1,29 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
-import firebase from 'firebase/compat/app';
-import 'firebase/compat/auth';
-import 'firebase/compat/firestore';
+import { createClient } from '@supabase/supabase-js';
 
-const firebaseConfig = {
-  apiKey: 'AIzaSyD7WChz-t65WMNqP2K_EjUNFYSUMO_uJ4I',
-  authDomain: 'nikitamath-7b94d.firebaseapp.com',
-  projectId: 'nikitamath-7b94d',
-  storageBucket: 'nikitamath-7b94d.firebasestorage.app',
-  messagingSenderId: '1083097624323',
-  appId: '1:1083097624323:web:b39138d380d1aabd694336',
-};
+const SUPABASE_URL = 'http://72.56.232.31:8000'; 
+const SUPABASE_ANON_KEY = 'fef512393c9b25d70393931ad8ea9011'; // <-- Выдели слова ВСТАВЬ_КЛЮЧ_СЮДА и нажми Cmd+V
 
-// Если ключи не вставлены, игра будет работать в локальном (офлайн) режиме
-const isCloudEnabled =
-  firebaseConfig.apiKey && firebaseConfig.apiKey.length > 5;
+const isCloudEnabled = SUPABASE_URL.length > 10;
 const APP_ID = 'nikita-math-platform';
-let auth = null;
-let db = null;
-
-if (isCloudEnabled && !firebase.apps.length) {
-  firebase.initializeApp(firebaseConfig);
-  auth = firebase.auth();
-  db = firebase.firestore();
-}
+export const supabase = isCloudEnabled 
+  ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY) 
+  : null;
 
 // --- 1. ИКОНКИ (SVG) ---
 const Icon = ({ children, size = 24, className = '', fill = 'none' }) => (
@@ -1126,82 +1111,41 @@ function MainApp() {
       return;
     }
 
-    const unsubscribe = auth.onAuthStateChanged((usr) => {
+    // --- SUPABASE: АВТОРИЗАЦИЯ И ЗАГРУЗКА ---
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      const usr = session?.user;
       setUser(usr);
       setAuthChecked(true);
+
       if (usr) {
         setView('home');
-        db.collection('artifacts')
-          .doc(APP_ID)
-          .collection('users')
-          .doc(usr.uid)
-          .onSnapshot(
-            (doc) => {
-              if (doc.exists) {
-                const data = doc.data() || {};
-                if (data.role) setRole(data.role);
-                if (data.classes) {
-                  setClasses(data.classes || []);
-                } else if (data.myStudents && data.myStudents.length > 0) {
-                  const defaultClass = {
-                    id: 'default',
-                    name: 'Основной класс',
-                    students: data.myStudents,
-                  };
-                  setClasses([defaultClass]);
-                  safeSave({ classes: [defaultClass] });
-                } else {
-                  setClasses([]);
-                }
+        // Скачиваем данные игрока из нашей новой таблицы
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', usr.id)
+          .single();
 
-                if (data.unlockedLevel1 !== undefined)
-                  setUnlockedLevel1(data.unlockedLevel1 || 1);
-                if (data.unlockedLevel2 !== undefined)
-                  setUnlockedLevel2(data.unlockedLevel2 || 1);
-                if (data.campaignPace !== undefined)
-                  setCampaignPace(data.campaignPace || 10);
-                if (data.score !== undefined) setScore(data.score || 0);
-                if (data.coins !== undefined) setCoins(data.coins || 0);
-                if (data.gems !== undefined) setGems(data.gems || 0);
-                if (data.inventory) setInventory(data.inventory || ['default']);
-                if (data.equippedAvatar) setEquippedAvatar(data.equippedAvatar);
-                if (data.cyborgLevel !== undefined)
-                  setCyborgLevel(data.cyborgLevel || 1);
-                if (data.ownedImplants)
-                  setOwnedImplants(data.ownedImplants || []);
-                if (data.lastDailyChest !== undefined)
-                  setLastDailyChest(data.lastDailyChest || 0);
-                if (data.claimedRaids) setClaimedRaids(data.claimedRaids || []);
-                if (data.history) {
-                  try {
-                    setHistory(JSON.parse(data.history) || []);
-                  } catch (e) {
-                    setHistory([]);
-                  }
-                }
-              }
-            },
-            (error) => console.error('Firestore error:', error)
-          );
-
-        const username = usr.email.split('@')[0];
-        db.collection('artifacts')
-          .doc(APP_ID)
-          .collection('public')
-          .doc('data')
-          .collection('profiles')
-          .doc(username)
-          .onSnapshot(
-            (doc) => {
-              if (doc.exists) setMyPublicProfile(doc.data());
-            },
-            (error) => console.error('Firestore error:', error)
-          );
+        if (data) {
+          setRole(data.role || 'student');
+          setUnlockedLevel1(data.unlocked_level1 || 1);
+          setUnlockedLevel2(data.unlocked_level2 || 1);
+          setCampaignPace(data.campaign_pace || 10);
+          setScore(data.score || 0);
+          setCoins(data.coins || 0);
+          setGems(data.gems || 0);
+          setInventory(data.inventory || ['default']);
+          setEquippedAvatar(data.equipped_avatar || 'default');
+          setCyborgLevel(data.cyborg_level || 1);
+          setOwnedImplants(data.owned_implants || []);
+          setLastDailyChest(data.last_daily_chest || 0);
+          setClaimedRaids(data.claimed_raids || []);
+        }
       } else {
         setView('auth');
       }
     });
-    return () => unsubscribe && unsubscribe();
+    return () => subscription?.unsubscribe();
   }, [role, user]);
 
   useEffect(() => {
@@ -1285,8 +1229,8 @@ function MainApp() {
     }
   }, [view, activeRaidId]);
 
-  const safeSave = (updates, isUrgent = false) => {
-    // 1. ЛОКАЛЬНЫЙ БЭКАП (Моментально сохраняем в браузере ВСЕГДА)
+  const safeSave = async (updates, isUrgent = false) => {
+    // 1. ЛОКАЛЬНЫЙ БЭКАП В БРАУЗЕР (Остается без изменений)
     try {
       if (updates.unlockedLevel1 !== undefined) localStorage.setItem('nikitaMathLevel1', updates.unlockedLevel1);
       if (updates.unlockedLevel2 !== undefined) localStorage.setItem('nikitaMathLevel2', updates.unlockedLevel2);
@@ -1300,113 +1244,41 @@ function MainApp() {
       if (updates.ownedImplants !== undefined) localStorage.setItem('nikitaMathImplants', JSON.stringify(updates.ownedImplants || []));
       if (updates.lastDailyChest !== undefined) localStorage.setItem('nikitaMathLastDaily', updates.lastDailyChest);
       if (updates.claimedRaids !== undefined) localStorage.setItem('nikitaMathClaimedRaids', JSON.stringify(updates.claimedRaids || []));
-      if (updates.history !== undefined) {
-        localStorage.setItem(
-          'nikitaMathHistory', 
-          Array.isArray(updates.history) ? JSON.stringify(updates.history) : '[]'
-        );
-      }
-    } catch (e) {
-      console.error('Ошибка сохранения в localStorage', e);
-    }
+    } catch (e) { console.error('Ошибка localStorage', e); }
 
-    // 2. ОНЛАЙН РЕЖИМ (Умное сохранение в Firebase с корзиной)
+    // 2. SUPABASE ОНЛАЙН СОХРАНЕНИЕ
     if (isCloudEnabled && user) {
-      // Складываем новые данные в "корзину"
       pendingUpdates.current = { ...pendingUpdates.current, ...updates };
+      if (saveTimer.current) clearTimeout(saveTimer.current);
 
-      // Сбрасываем старый таймер, если он был
-      if (saveTimer.current) {
-        clearTimeout(saveTimer.current);
-      }
-
-      // Если срочно (покупка в магазине) - отправляем корзину мгновенно
-      if (isUrgent) {
-        db.collection('artifacts')
-          .doc(APP_ID)
-          .collection('users')
-          .doc(user.uid)
-          .set(pendingUpdates.current, { merge: true })
-          .catch((e) => console.error(e));
+      const sendToDb = async () => {
+        if (Object.keys(pendingUpdates.current).length === 0) return;
         
-        pendingUpdates.current = {}; // Очищаем корзину после отправки
-      } else {
-        // Иначе ждем 10 секунд. Если решат еще пример - таймер обнулится.
-        saveTimer.current = setTimeout(() => {
-          db.collection('artifacts')
-            .doc(APP_ID)
-            .collection('users')
-            .doc(user.uid)
-            .set(pendingUpdates.current, { merge: true })
-            .catch((e) => console.error(e));
-          
-          pendingUpdates.current = {}; // Очищаем корзину после отправки
-        }, 20000); // 20 секунд задержки
-      }
-    }
-  };
+        // Переводим названия в формат базы данных
+        const payload = {};
+        if (pendingUpdates.current.unlockedLevel1 !== undefined) payload.unlocked_level1 = pendingUpdates.current.unlockedLevel1;
+        if (pendingUpdates.current.unlockedLevel2 !== undefined) payload.unlocked_level2 = pendingUpdates.current.unlockedLevel2;
+        if (pendingUpdates.current.campaignPace !== undefined) payload.campaign_pace = pendingUpdates.current.campaignPace;
+        if (pendingUpdates.current.score !== undefined) payload.score = pendingUpdates.current.score;
+        if (pendingUpdates.current.coins !== undefined) payload.coins = pendingUpdates.current.coins;
+        if (pendingUpdates.current.gems !== undefined) payload.gems = pendingUpdates.current.gems;
+        if (pendingUpdates.current.inventory !== undefined) payload.inventory = pendingUpdates.current.inventory;
+        if (pendingUpdates.current.equippedAvatar !== undefined) payload.equipped_avatar = pendingUpdates.current.equippedAvatar;
+        if (pendingUpdates.current.cyborgLevel !== undefined) payload.cyborg_level = pendingUpdates.current.cyborgLevel;
+        if (pendingUpdates.current.ownedImplants !== undefined) payload.owned_implants = pendingUpdates.current.ownedImplants;
+        if (pendingUpdates.current.lastDailyChest !== undefined) payload.last_daily_chest = pendingUpdates.current.lastDailyChest;
+        if (pendingUpdates.current.claimedRaids !== undefined) payload.claimed_raids = pendingUpdates.current.claimedRaids;
 
-  const updatePublicProfile = (
-    level1,
-    level2,
-    pace,
-    newScore,
-    newCoins,
-    newGems,
-    newAvatar,
-    isUrgent = false // <-- Добавили флаг СРОЧНО
-  ) => {
-    if (isCloudEnabled && user && role === 'student') {
-      const username = user.email.split('@')[0];
-
-      // 1. Формируем свежие данные
-      const newData = {
-        username: username,
-        unlockedLevel: level1 || 1,
-        unlockedLevel2: level2 || 1,
-        campaignPace: pace || 10,
-        score: newScore || 0,
-        coins: newCoins || 0,
-        gems: newGems || 0,
-        avatar: newAvatar || equippedAvatar,
-        lastActive: Date.now(),
+        if (Object.keys(payload).length > 0) {
+          await supabase.from('profiles').update(payload).eq('id', user.id);
+        }
+        pendingUpdates.current = {};
       };
 
-      // 2. Складываем в "публичную корзину"
-      pendingPublicUpdates.current = { ...pendingPublicUpdates.current, ...newData };
-
-      // 3. Сбрасываем старый таймер
-      if (publicSaveTimer.current) {
-        clearTimeout(publicSaveTimer.current);
-      }
-
-      // 4. Умная отправка
       if (isUrgent) {
-        // Если покупка в магазине - отправляем сразу!
-        db.collection('artifacts')
-          .doc(APP_ID)
-          .collection('public')
-          .doc('data')
-          .collection('profiles')
-          .doc(username)
-          .set(pendingPublicUpdates.current, { merge: true })
-          .catch((e) => console.error(e));
-        
-        pendingPublicUpdates.current = {}; // Очищаем корзину
+        await sendToDb();
       } else {
-        // Если просто решил пример - ждем 10 секунд и отправляем пачкой!
-        publicSaveTimer.current = setTimeout(() => {
-          db.collection('artifacts')
-            .doc(APP_ID)
-            .collection('public')
-            .doc('data')
-            .collection('profiles')
-            .doc(username)
-            .set(pendingPublicUpdates.current, { merge: true })
-            .catch((e) => console.error(e));
-          
-          pendingPublicUpdates.current = {}; // Очищаем корзину
-        }, 10000);
+        saveTimer.current = setTimeout(sendToDb, 10000);
       }
     }
   };
@@ -1952,17 +1824,14 @@ function MainApp() {
     setView('home');
   };
 
-  const handleLogin = () => {
+  const handleLogin = async () => {
     if (!usernameInput || !passwordInput) {
       setAuthError('Заполни все поля!');
       return;
     }
     if (!isCloudEnabled) {
       setUser({
-        email: `${usernameInput
-          .toLowerCase()
-          .trim()
-          .replace(/\s/g, '')}@nikita.app`,
+        email: `${usernameInput.toLowerCase().trim().replace(/\s/g, '')}@nikita.app`,
         uid: 'local_user',
       });
       setRole(isTeacherCheckbox ? 'teacher' : 'student');
@@ -1970,13 +1839,17 @@ function MainApp() {
       setView('home');
       return;
     }
-    const email = `${usernameInput
-      .toLowerCase()
-      .trim()
-      .replace(/\s/g, '')}@nikita.app`;
-    auth
-      .signInWithEmailAndPassword(email, passwordInput)
-      .catch((e) => setAuthError('Неверный логин или пароль!'));
+    const email = `${usernameInput.toLowerCase().trim().replace(/\s/g, '')}@nikita.app`;
+    
+    // --- SUPABASE ВХОД ---
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: email,
+      password: passwordInput,
+    });
+
+    if (error) {
+      setAuthError('Неверный логин или пароль!');
+    }
   };
 
   const handleRegister = async () => {
@@ -1997,58 +1870,46 @@ function MainApp() {
       return;
     }
     const email = `${username}@nikita.app`;
+    
     try {
-      const res = await auth.createUserWithEmailAndPassword(
-        email,
-        passwordInput
-      );
-      await db
-        .collection('artifacts')
-        .doc(APP_ID)
-        .collection('users')
-        .doc(res.user.uid)
-        .set({
+      // --- SUPABASE РЕГИСТРАЦИЯ ---
+      const { data, error } = await supabase.auth.signUp({
+        email: email,
+        password: passwordInput,
+      });
+
+      if (error) throw error;
+
+      // Создаем профиль ученика в нашей новой таблице 'profiles'
+      await supabase.from('profiles').insert([
+        {
+          id: data.user.id,
+          username: username,
           role: isTeacherCheckbox ? 'teacher' : 'student',
-          classes: [],
-          unlockedLevel1: 1,
-          unlockedLevel2: 1,
-          campaignPace: 10,
-          score: 0,
           coins: 0,
           gems: 0,
+          score: 0,
+          unlocked_level1: 1,
+          unlocked_level2: 1,
+          campaign_pace: 10,
+          equipped_avatar: 'default',
           inventory: ['default'],
-          equippedAvatar: 'default',
-          claimedRaids: [],
-          cyborgLevel: 1,
-          ownedImplants: [],
-        });
-      if (!isTeacherCheckbox) {
-        await db
-          .collection('artifacts')
-          .doc(APP_ID)
-          .collection('public')
-          .doc('data')
-          .collection('profiles')
-          .doc(username)
-          .set({
-            username: username,
-            unlockedLevel: 1,
-            unlockedLevel2: 1,
-            campaignPace: 10,
-            score: 0,
-            coins: 0,
-            gems: 0,
-            avatar: 'default',
-            lastActive: Date.now(),
-          });
-      }
+          cyborg_level: 1,
+          owned_implants: [],
+          claimed_raids: []
+        }
+      ]);
+
     } catch (e) {
-      setAuthError('Имя занято!');
+      setAuthError('Имя занято или произошла ошибка базы!');
+      console.error(e);
     }
   };
 
-  const handleLogout = () => {
-    if (isCloudEnabled) auth.signOut();
+  const handleLogout = async () => {
+    // --- SUPABASE ВЫХОД ---
+    if (isCloudEnabled) await supabase.auth.signOut();
+    
     setUnlockedLevel1(1);
     setUnlockedLevel2(1);
     setSelectedLevel1(1);
@@ -5129,8 +4990,6 @@ function MainApp() {
       )}
     </div>
   );
-}
-
 // --- 5. ERROR BOUNDARY (ПРЕДОХРАНИТЕЛЬ ОТ БЕЛОГО ЭКРАНА) ---
 class ErrorBoundary extends React.Component {
   constructor(props) {
@@ -5180,4 +5039,5 @@ export default function AppWithBoundary() {
       <MainApp />
     </ErrorBoundary>
   );
+}
 }
