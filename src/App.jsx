@@ -1857,58 +1857,58 @@ function MainApp() {
 
   const handleRegister = async () => {
     if (!usernameInput || passwordInput.length < 6) {
-      setAuthError('Пароль должен быть минимум 6 символов!');
+      setAuthError('Логин обязателен, а пароль должен быть от 6 символов!');
       return;
     }
-    if (checkProfanity(usernameInput)) {
-      setAuthError('Выбери другое имя!');
-      return;
-    }
-    const username = usernameInput.toLowerCase().trim().replace(/\s/g, '');
-    if (!isCloudEnabled) {
-      setUser({ email: `${username}@nikita.app`, uid: 'local_user' });
-      setRole(isTeacherCheckbox ? 'teacher' : 'student');
-      setAuthChecked(true);
-      setView('home');
-      return;
-    }
-    const email = `${username}@nikita.app`;
     
+    const username = usernameInput.toLowerCase().trim().replace(/\s/g, '');
+    const email = `${username}@nikita.app`;
+
     try {
-      // --- SUPABASE РЕГИСТРАЦИЯ ---
-      const { data, error } = await supabase.auth.signUp({
+      // 1. Регистрация пользователя в Supabase Auth
+      const { data, error: authError } = await supabase.auth.signUp({
         email: email,
         password: passwordInput,
       });
 
-      if (error) throw error;
+      if (authError) throw authError;
 
-      // Создаем профиль ученика в нашей новой таблице 'profiles'
-      await supabase.from('profiles').insert([
-        {
-          id: data.user.id,
-          username: username,
-          role: isTeacherCheckbox ? 'teacher' : 'student',
-          coins: 0,
-          gems: 0,
-          score: 0,
-          unlocked_level1: 1,
-          unlocked_level2: 1,
-          campaign_pace: 10,
-          equipped_avatar: 'default',
-          inventory: ['default'],
-          cyborg_level: 1,
-          owned_implants: [],
-          claimed_raids: []
+      if (data?.user) {
+        // 2. Создание записи в таблице profiles
+        const { error: profileError } = await supabase.from('profiles').insert([
+          {
+            id: data.user.id,
+            username: username,
+            role: isTeacherCheckbox ? 'teacher' : 'student',
+            coins: 0,
+            gems: 0,
+            score: 0,
+            unlocked_level1: 1,
+            unlocked_level2: 1,
+            campaign_pace: 10,
+            equipped_avatar: 'default',
+            inventory: ['default'],
+            cyborg_level: 1,
+            owned_implants: [],
+            claimed_raids: []
+          }
+        ]);
+
+        if (profileError) {
+          console.error("Ошибка создания профиля:", profileError);
+          setAuthError('Ошибка при создании профиля в базе.');
+        } else {
+          // Если всё ок, переходим в игру
+          setUser(data.user);
+          setView('home');
         }
-      ]);
-
-    } catch (e) {
-      setAuthError('Имя занято или произошла ошибка базы!');
-      console.error(e);
+      }
+    } catch (err) {
+      console.error("Ошибка регистрации:", err);
+      setAuthError('Ошибка регистрации. Возможно, имя уже занято.');
     }
   };
-
+  
   const handleLogout = async () => {
     // --- SUPABASE ВЫХОД ---
     if (isCloudEnabled) await supabase.auth.signOut();
