@@ -1,11 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createClient } from '@supabase/supabase-js';
 
+// --- НАСТРОЙКИ SUPABASE ---
 const SUPABASE_URL = 'http://72.56.232.31:8000'; 
-const SUPABASE_ANON_KEY = 'fef512393c9b25d70393931ad8ea9011'; // <-- Выдели слова ВСТАВЬ_КЛЮЧ_СЮДА и нажми Cmd+V
+const SUPABASE_ANON_KEY = 'fef512393c9b25d70393931ad8ea9011'; 
 
 const isCloudEnabled = SUPABASE_URL.length > 10;
 const APP_ID = 'nikita-math-platform';
+
+// Инициализируем клиент только один раз здесь
 export const supabase = isCloudEnabled 
   ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY) 
   : null;
@@ -4990,42 +4993,25 @@ function MainApp() {
       )}
     </div>
   );
-// --- 5. ERROR BOUNDARY (ПРЕДОХРАНИТЕЛЬ ОТ БЕЛОГО ЭКРАНА) ---
+// Конец основной функции MainApp
+} 
+
+// --- 5. ERROR BOUNDARY (ПРЕДОХРАНИТЕЛЬ) ---
 class ErrorBoundary extends React.Component {
-  constructor(props) {
-    super(props);
-    this.state = { hasError: false, errorInfo: null };
+  constructor(props) { 
+    super(props); 
+    this.state = { hasError: false, errorInfo: null }; 
   }
-  static getDerivedStateFromError(error) {
-    return { hasError: true, errorInfo: error.message };
-  }
-  componentDidCatch(error, errorInfo) {
-    console.error('React Error Boundary поймал ошибку:', error, errorInfo);
+  static getDerivedStateFromError(error) { 
+    return { hasError: true, errorInfo: error.message }; 
   }
   render() {
     if (this.state.hasError) {
       return (
-        <div className="min-h-[100dvh] bg-black text-white flex flex-col items-center justify-center p-6 text-center font-sans">
-          <div className="text-6xl mb-4 animate-bounce">⚠️</div>
-          <h2 className="text-4xl font-black mb-4 uppercase tracking-widest text-red-500">
-            Сбой Матрицы
-          </h2>
-          <p className="text-neutral-400 mb-8 max-w-md">
-            Произошла ошибка при расчетах.
-            <br />
-            Мы поймали её, чтобы игра не зависла.
-            <br />
-            <br />
-            <span className="text-red-400 font-mono text-xs">
-              {this.state.errorInfo}
-            </span>
-          </p>
-          <button
-            onClick={() => window.location.reload()}
-            className="px-8 py-4 bg-red-600 text-white rounded-2xl font-black text-xl shadow-lg shadow-red-500/20 hover:bg-red-500 active:scale-95 transition-all"
-          >
-            Перезагрузить систему
-          </button>
+        <div className="min-h-[100dvh] bg-black text-white flex flex-col items-center justify-center p-6 text-center">
+          <h2 className="text-red-500 text-4xl font-black mb-4">СБОЙ МАТРИЦЫ</h2>
+          <pre className="text-xs text-red-400 mb-8">{this.state.errorInfo}</pre>
+          <button onClick={() => window.location.reload()} className="px-8 py-4 bg-white text-black rounded-2xl font-black">ПЕРЕЗАГРУЗИТЬ</button>
         </div>
       );
     }
@@ -5039,5 +5025,4 @@ export default function AppWithBoundary() {
       <MainApp />
     </ErrorBoundary>
   );
-}
 }
