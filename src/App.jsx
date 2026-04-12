@@ -1013,6 +1013,8 @@ function MainApp() {
   const saveTimer = useRef(null);
   const pendingPublicUpdates = useRef({});
   const publicSaveTimer = useRef(null);
+  const pendingRaidDamage = useRef(0);
+  const raidDamageTimer = useRef(null);
 
   // --- РЕЙДЫ ---
   const [selectedBoss, setSelectedBoss] = useState(null);
@@ -1782,36 +1784,47 @@ function MainApp() {
       const myUsername = user?.email?.split('@')[0] || 'guest';
 
       if (isCloudEnabled && activeRaidId) {
-        db.collection('artifacts')
-          .doc(APP_ID)
-          .collection('public')
-          .doc('data')
-          .collection('raid_rooms')
-          .doc(activeRaidId)
-          .update({
-            bossHp: firebase.firestore.FieldValue.increment(-damage),
-            [`participants.${myUsername}`]:
-              firebase.firestore.FieldValue.increment(damage),
-          })
-          .catch((e) => {
-            console.error(
-              'Ошибка синхронизации урона, продолжаем локально:',
-              e
-            );
-            const newHp = activeRaidData.bossHp - damage;
-            const newParticipants = { ...activeRaidData.participants };
-            newParticipants[myUsername] =
-              (newParticipants[myUsername] || 0) + damage;
-            const newData = {
-              ...activeRaidData,
-              bossHp: newHp,
-              participants: newParticipants,
-            };
-            setActiveRaidData(newData);
-            setRaidRooms((prev) =>
-              (prev || []).map((r) => (r.id === activeRaidId ? newData : r))
-            );
-          });
+        // 1. Оптимистичное обновление UI (чтобы сразу видеть изменения на экране)
+        setActiveRaidData((prev) => {
+          if (!prev) return prev;
+          const newParticipants = { ...prev.participants };
+          newParticipants[myUsername] = (newParticipants[myUsername] || 0) + damage;
+          return {
+            ...prev,
+            bossHp: Math.max(0, prev.bossHp - damage),
+            participants: newParticipants,
+          };
+        });
+
+        // 2. Накапливаем урон в "корзине"
+        pendingRaidDamage.current += damage;
+
+        // 3. Запускаем таймер, ТОЛЬКО если он еще не запущен
+        if (!raidDamageTimer.current) {
+          raidDamageTimer.current = setTimeout(() => {
+            const damageToSend = pendingRaidDamage.current;
+            
+            if (damageToSend > 0) {
+              pendingRaidDamage.current = 0; // Очищаем накопленный урон перед отправкой
+              
+              // ВАЖНО: Проверь, чтобы путь к коллекции совпадал с тем, где лежат данные!
+              db.collection('artifacts')
+                .doc(APP_ID) // Убедись, что APP_ID определен
+                .collection('public')
+                .doc('data')
+                .collection('raid_rooms')
+                .doc(activeRaidId)
+                .update({
+                  bossHp: firebase.firestore.FieldValue.increment(-damageToSend),
+                  [`participants.${myUsername}`]: firebase.firestore.FieldValue.increment(damageToSend),
+                })
+                .then(() => console.log(`Урон ${damageToSend} успешно отправлен`))
+                .catch((e) => console.error('Ошибка Firestore:', e));
+            }
+            
+            raidDamageTimer.current = null; // Разрешаем запуск следующего цикла через 3 сек
+          }, 3000); 
+        }
       } else if (activeRaidData) {
         const newHp = activeRaidData.bossHp - damage;
         const newParticipants = { ...activeRaidData.participants };
@@ -3267,7 +3280,7 @@ function MainApp() {
                           0,
                           Math.min(
                             100,
-                            ((room.bossHp || 0) / (room.bossMaxHp || 5000)) *
+                            ((room.bossHp || 0) / (room.bossMaxHp || 2000000)) *
                               100
                           )
                         )
