@@ -1857,24 +1857,28 @@ function MainApp() {
 
   const handleRegister = async () => {
     if (!usernameInput || passwordInput.length < 6) {
-      setAuthError('Логин обязателен, а пароль должен быть от 6 символов!');
+      setAuthError('Пароль должен быть минимум 6 символов!');
       return;
     }
-    
     const username = usernameInput.toLowerCase().trim().replace(/\s/g, '');
     const email = `${username}@nikita.app`;
-
+    
     try {
-      // 1. Регистрация пользователя в Supabase Auth
+      setAuthError('Связь с сервером...'); // Показываем статус загрузки
+
+      // 1. Регистрация в Auth
       const { data, error: authError } = await supabase.auth.signUp({
         email: email,
         password: passwordInput,
       });
 
-      if (authError) throw authError;
+      if (authError) {
+        setAuthError('Ошибка Auth: ' + authError.message);
+        return;
+      }
 
+      // 2. Создание записи в таблице profiles
       if (data?.user) {
-        // 2. Создание записи в таблице profiles
         const { error: profileError } = await supabase.from('profiles').insert([
           {
             id: data.user.id,
@@ -1895,17 +1899,19 @@ function MainApp() {
         ]);
 
         if (profileError) {
-          console.error("Ошибка создания профиля:", profileError);
-          setAuthError('Ошибка при создании профиля в базе.');
-        } else {
-          // Если всё ок, переходим в игру
-          setUser(data.user);
-          setView('home');
+          console.error("Детали ошибки БД:", profileError);
+          setAuthError('Ошибка БД: ' + profileError.message);
+          return;
         }
+
+        // Если дошли сюда — всё супер!
+        setAuthError('');
+        setUser(data.user);
+        setView('home');
       }
-    } catch (err) {
-      console.error("Ошибка регистрации:", err);
-      setAuthError('Ошибка регистрации. Возможно, имя уже занято.');
+    } catch (e) {
+      setAuthError('Критический сбой: ' + e.message);
+      console.error(e);
     }
   };
   
@@ -4993,25 +4999,44 @@ function MainApp() {
       )}
     </div>
   );
-// Конец основной функции MainApp
-} 
+} // <--- ВОТ ОНА! Эта скобка правильно закрывает MainApp!
 
-// --- 5. ERROR BOUNDARY (ПРЕДОХРАНИТЕЛЬ) ---
+// --- 5. ERROR BOUNDARY (ПРЕДОХРАНИТЕЛЬ ОТ БЕЛОГО ЭКРАНА) ---
 class ErrorBoundary extends React.Component {
-  constructor(props) { 
-    super(props); 
-    this.state = { hasError: false, errorInfo: null }; 
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, errorInfo: null };
   }
-  static getDerivedStateFromError(error) { 
-    return { hasError: true, errorInfo: error.message }; 
+  static getDerivedStateFromError(error) {
+    return { hasError: true, errorInfo: error.message };
+  }
+  componentDidCatch(error, errorInfo) {
+    console.error('React Error Boundary поймал ошибку:', error, errorInfo);
   }
   render() {
     if (this.state.hasError) {
       return (
-        <div className="min-h-[100dvh] bg-black text-white flex flex-col items-center justify-center p-6 text-center">
-          <h2 className="text-red-500 text-4xl font-black mb-4">СБОЙ МАТРИЦЫ</h2>
-          <pre className="text-xs text-red-400 mb-8">{this.state.errorInfo}</pre>
-          <button onClick={() => window.location.reload()} className="px-8 py-4 bg-white text-black rounded-2xl font-black">ПЕРЕЗАГРУЗИТЬ</button>
+        <div className="min-h-[100dvh] bg-black text-white flex flex-col items-center justify-center p-6 text-center font-sans">
+          <div className="text-6xl mb-4 animate-bounce">⚠️</div>
+          <h2 className="text-4xl font-black mb-4 uppercase tracking-widest text-red-500">
+            Сбой Матрицы
+          </h2>
+          <p className="text-neutral-400 mb-8 max-w-md">
+            Произошла ошибка при расчетах.
+            <br />
+            Мы поймали её, чтобы игра не зависла.
+            <br />
+            <br />
+            <span className="text-red-400 font-mono text-xs">
+              {this.state.errorInfo}
+            </span>
+          </p>
+          <button
+            onClick={() => window.location.reload()}
+            className="px-8 py-4 bg-red-600 text-white rounded-2xl font-black text-xl shadow-lg shadow-red-500/20 hover:bg-red-500 active:scale-95 transition-all"
+          >
+            Перезагрузить систему
+          </button>
         </div>
       );
     }
