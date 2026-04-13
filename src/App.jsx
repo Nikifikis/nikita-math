@@ -1003,6 +1003,7 @@ function MainApp() {
   const publicSaveTimer = useRef(null);
   const pendingRaidDamage = useRef(0);
   const raidDamageTimer = useRef(null);
+  const [isLoadingProfile, setIsLoadingProfile] = useState(false);
 
   // --- РЕЙДЫ ---
   const [selectedBoss, setSelectedBoss] = useState(null);
@@ -1119,37 +1120,45 @@ function MainApp() {
       const usr = session?.user;
       setUser(usr);
       setAuthChecked(true);
-
       if (usr) {
-        setView('home');
-        // Скачиваем данные игрока из нашей новой таблицы
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', usr.id)
-          .single();
-
-        if (data) {
-          setRole(data.role || 'student');
-          setUnlockedLevel1(data.unlocked_level1 || 1);
-          setUnlockedLevel2(data.unlocked_level2 || 1);
-          setCampaignPace(data.campaign_pace || 10);
-          setScore(data.score || 0);
-          setCoins(data.coins || 0);
-          setGems(data.gems || 0);
-          setInventory(data.inventory || ['default']);
-          setEquippedAvatar(data.equipped_avatar || 'default');
-          setCyborgLevel(data.cyborg_level || 1);
-          setOwnedImplants(data.owned_implants || []);
-          setLastDailyChest(data.last_daily_chest || 0);
-          setClaimedRaids(data.claimed_raids || []);
+        setIsLoadingProfile(true); // Включаем экран загрузки
+        setView((prev) => (prev === 'auth' ? 'home' : prev));
+  
+        try {
+          const { data, error } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', usr.id)
+            .single();
+  
+          if (data) {
+            setRole(data.role || 'student');
+            setUnlockedLevel1(data.unlocked_level1 || 1);
+            setUnlockedLevel2(data.unlocked_level2 || 1);
+            setCampaignPace(data.campaign_pace || 10);
+            setScore(data.score || 0);
+            setCoins(data.coins || 0);
+            setGems(data.gems || 0);
+            setInventory(data.inventory || ['default']);
+            setEquippedAvatar(data.equipped_avatar || 'default');
+            setCyborgLevel(data.cyborg_level || 1);
+            setOwnedImplants(data.owned_implants || []);
+            setLastDailyChest(data.last_daily_chest || 0);
+            setClaimedRaids(data.claimed_raids || []);
+          }
+        } catch (e) {
+          console.error("Ошибка сети при загрузке:", e);
+        } finally {
+          setIsLoadingProfile(false); // Выключаем экран загрузки, когда ВСЁ скачалось
         }
       } else {
         setView('auth');
+        setIsLoadingProfile(false);
       }
     });
+  
     return () => subscription?.unsubscribe();
-  }, [role, user]);
+  }, []);
 
   useEffect(() => {
     if (!isCloudEnabled || role !== 'teacher' || classes.length === 0) return;
