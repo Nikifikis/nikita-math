@@ -2,8 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { createClient } from '@supabase/supabase-js';
 
 // --- НАСТРОЙКИ SUPABASE ---
-const SUPABASE_URL = 'http://72.56.232.31:8000'; 
-const SUPABASE_ANON_KEY = 'fef512393c9b25d70393931ad8ea9011'; 
+const SUPABASE_URL = 'https://gcpgmiwwrkqcynedjiui.supabase.co'; 
+const SUPABASE_ANON_KEY = 'sb_publishable_3ktY2UI7kg7Cr-QZfjNFNA_ofUKApHj'; 
 
 const isCloudEnabled = SUPABASE_URL.length > 10;
 const APP_ID = 'nikita-math-platform';
