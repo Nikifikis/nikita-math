@@ -1572,7 +1572,7 @@ function MainApp() {
       });
     } else if (type === 'normal' && safeCoins >= 100) {
       // 📦 Обычный сундук (Стоит 100 монет)
-      cAdd = -100; 
+      cAdd = -300; 
       
       if (rng < 0.02) { 
         // 💎 2% шанс - ЛЕГЕНДАРНЫЙ ДРОП ГЕМОВ
@@ -2225,9 +2225,11 @@ function MainApp() {
     const timeLimit = isCampaign ? 120 : freeplaySettings?.timeLimit || 120;
 
     let earnedPoints = 0;
-    let earnedCoinsLocal = finalState?.correct || 0;
+    let earnedCoinsLocal = 0; // Изначально 0, посчитаем ниже
     const paceMultiplier = (Number(campaignPace) || 10) / 5;
+    
     if (isCampaign) {
+      earnedCoinsLocal = finalState?.correct || 0;
       earnedPoints =
         (finalState?.correct || 0) * 2 * paceMultiplier * (isC2 ? 2 : 1);
       if ((finalState?.correct || 0) >= (finalState?.target || 0)) {
@@ -2235,7 +2237,35 @@ function MainApp() {
         earnedCoinsLocal += 20;
       }
     } else {
-      earnedPoints = (finalState?.correct || 0) * 1;
+      // --- АНТИ-ЧИТ ДЛЯ СВОБОДНОЙ ИГРЫ (ДИНАМИЧЕСКИЙ МНОЖИТЕЛЬ) ---
+      let multiplier = 1.0;
+      const setts = freeplaySettings || {};
+      
+      // 1. Действия (Умножение и смешанные режимы дают больше)
+      if (setts.mode === 'muldiv') multiplier += 0.5;
+      if (setts.mode === 'mixed') multiplier += 1.0;
+      
+      // 2. Длина примера (3 числа решать сложнее, чем 2)
+      if (setts.terms === 3) multiplier += 1.0;
+      
+      // 3. Размер чисел (чем больше числа, тем выше награда)
+      const maxVal = Math.max(setts.ranges?.addSub || 0, setts.ranges?.mulDiv || 0);
+      if (maxVal >= 50 && maxVal < 100) multiplier += 0.5;
+      else if (maxVal >= 100 && maxVal < 500) multiplier += 1.0;
+      else if (maxVal >= 500) multiplier += 2.0;
+      
+      // 4. Таймер (мало времени = стресс = бонус. Много времени = штраф)
+      if (setts.timeLimit <= 60) multiplier += 0.5;
+      else if (setts.timeLimit >= 180) multiplier -= 0.3;
+      
+      multiplier = Math.max(0.1, multiplier); // Защита от ухода в минус
+      
+      const correctAnswers = finalState?.correct || 0;
+      
+      // Итог: 2 XP и 1 Монета за каждый пример умножаются на сложность
+      earnedPoints = Math.floor((correctAnswers * 2) * multiplier);
+      earnedCoinsLocal = Math.floor((correctAnswers * 1) * multiplier);
+      // -------------------------------------------------------------
     }
 
     const newScore = (score || 0) + earnedPoints;
