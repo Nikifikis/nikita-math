@@ -1570,8 +1570,8 @@ function MainApp() {
         reward: rewardTitle,
         icon: '🎁',
       });
-    } else if (type === 'normal' && safeCoins >= 100) {
-      // 📦 Обычный сундук (Стоит 100 монет)
+    } else if (type === 'normal' && safeCoins >= 300) {
+      // 📦 Обычный сундук (Стоит 300 монет)
       cAdd = -300; 
       
       if (rng < 0.02) { 
@@ -1895,24 +1895,24 @@ function MainApp() {
 
     let coinBase =
       selectedBoss.id === 'boss_1'
-        ? 100
+        ? 500
         : selectedBoss.id === 'boss_2'
-        ? 300
-        : selectedBoss.id === 'boss_3'
         ? 1000
+        : selectedBoss.id === 'boss_3'
+        ? 5000
         : selectedBoss.id === 'boss_4'
-        ? 3000
-        : 10000;
+        ? 10000
+        : 50000;
     let gemBase =
       selectedBoss.id === 'boss_1'
-        ? 1
+        ? 3
         : selectedBoss.id === 'boss_2'
-        ? 2
-        : selectedBoss.id === 'boss_3'
         ? 5
+        : selectedBoss.id === 'boss_3'
+        ? 10
         : selectedBoss.id === 'boss_4'
-        ? 15
-        : 50;
+        ? 30
+        : 60;
 
     let cAdd = coinBase,
       gAdd = gemBase,
@@ -2962,14 +2962,14 @@ function MainApp() {
                 </p>
                 <button
                   onClick={() => openChest('normal')}
-                  disabled={(coins || 0) < 100}
+                  disabled={(coins || 0) < 300}
                   className={`mt-auto w-full py-3 rounded-xl font-bold flex items-center justify-center gap-1 transition-all ${
-                    (coins || 0) >= 100
+                    (coins || 0) >= 300
                       ? 'bg-yellow-400 text-black hover:bg-yellow-300 active:scale-95'
                       : 'bg-neutral-800 text-neutral-600 cursor-not-allowed'
                   }`}
                 >
-                  100 <CoinsIcon size={16} />
+                  300 <CoinsIcon size={16} />
                 </button>
               </div>
               <div className="bg-black border-2 border-purple-500/50 rounded-2xl p-4 flex flex-col items-center text-center shadow-[0_0_15px_rgba(168,85,247,0.2)]">
@@ -3472,40 +3472,38 @@ function MainApp() {
     const myUsername = user?.email?.split('@')[0] || 'guest';
     const myDamage = cleanParticipants.find((p) => p.name === myUsername)?.damage || 0;
     const sortedAll = [...cleanParticipants].sort((a, b) => b.damage - a.damage);
-    const myRank = sortedAll.findIndex((p) => p[0] === myUsername) + 1;
+    const myRank = sortedAll.findIndex((p) => p.name === myUsername);
 
-    const isGoblin = selectedBoss.id === 'boss_1';
-    const isOrc = selectedBoss.id === 'boss_2';
-    const isDragon = selectedBoss.id === 'boss_3';
-    const isDestroyer = selectedBoss.id === 'boss_4';
-    let coinBase = isGoblin
-      ? 500
-      : isOrc
-      ? 1000
-      : isDragon
-      ? 5000
-      : isDestroyer
-      ? 10000
-      : 50000;
-    let gemBase = isGoblin
-      ? 3
-      : isOrc
-      ? 5
-      : isDragon
-      ? 10
-      : isDestroyer
-      ? 30
-      : 60;
+    let coinBase =
+      selectedBoss.id === 'boss_1'
+        ? 500
+        : selectedBoss.id === 'boss_2'
+        ? 1000
+        : selectedBoss.id === 'boss_3'
+        ? 5000
+        : selectedBoss.id === 'boss_4'
+        ? 10000
+        : 50000;
+    let gemBase =
+      selectedBoss.id === 'boss_1'
+        ? 3
+        : selectedBoss.id === 'boss_2'
+        ? 5
+        : selectedBoss.id === 'boss_3'
+        ? 10
+        : selectedBoss.id === 'boss_4'
+        ? 30
+        : 60;
 
     let myExpectedReward = 'Нет урона = нет лута';
     if (myDamage > 0) {
-      if (myRank === 1)
+      if (myRank === 0)
         myExpectedReward = `Топ-1: 💎${gemBase * 3} + 🪙${coinBase * 5}`;
-      else if (myRank <= 3)
+      else if (myRank <= 2)
         myExpectedReward = `Топ-3: 💎${Math.ceil(gemBase * 1.5)} + 🪙${
           coinBase * 3
         }`;
-      else if (myRank <= 5)
+      else if (myRank <= 4)
         myExpectedReward = `Топ-5: 💎${gemBase} + 🪙${Math.ceil(
           coinBase * 1.5
         )}`;
