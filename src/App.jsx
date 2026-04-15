@@ -1080,7 +1080,7 @@ function MainApp() {
   }, []);
   const currentHour = currentTime.getHours();
   const isRaidActive =
-    role === 'teacher' || (currentHour >= 18 && currentHour < 21);
+    role === 'teacher' || (currentHour >= 12 && currentHour < 21);
 
   // ИНИЦИАЛИЗАЦИЯ
   useEffect(() => {
@@ -2817,7 +2817,7 @@ function MainApp() {
                 </span>
               ) : (
                 <span className="text-[10px] font-bold text-neutral-500 uppercase mt-1">
-                  ⏳ Откроется с 18:00 до 21:00
+                  ⏳ Откроется с 12:00 до 21:00
                 </span>
               )}
             </button>
