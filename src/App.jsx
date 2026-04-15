@@ -1877,14 +1877,21 @@ function MainApp() {
       return;
     }
 
+    const cleanParticipants = Object.entries(activeRaidData.participants || {}).map(([key, value]) => {
+      if (typeof value === 'number') return { name: key, damage: value };
+      if (typeof value === 'object' && value !== null) {
+        const nestedKey = Object.keys(value)[0];
+        return { name: `${key}.${nestedKey}`, damage: Number(value[nestedKey]) || 0 };
+      }
+      return { name: key, damage: 0 };
+    });
+
     const myUsername = user?.email?.split('@')[0] || 'guest';
-    const myDmg = activeRaidData.participants?.[myUsername] || 0;
+    const myDmg = cleanParticipants.find((p) => p.name === myUsername)?.damage || 0;
     if (myDmg === 0) return;
 
-    const sorted = Object.entries(activeRaidData.participants || {}).sort(
-      (a, b) => b[1] - a[1]
-    );
-    const myRank = sorted.findIndex((p) => p[0] === myUsername);
+    const sorted = [...cleanParticipants].sort((a, b) => b.damage - a.damage);
+    const myRank = sorted.findIndex((p) => p.name === myUsername);
 
     let coinBase =
       selectedBoss.id === 'boss_1'
@@ -1988,7 +1995,7 @@ function MainApp() {
       setAuthError('Выбери другое имя!');
       return;
     }
-    const username = usernameInput.toLowerCase().trim().replace(/\s/g, '');
+    const username = usernameInput.toLowerCase().trim().replace(/[\s.]/g, '');
     if (!isCloudEnabled) {
       setUser({ email: `${username}@nikita.app`, uid: 'local_user' });
       setRole(isTeacherCheckbox ? 'teacher' : 'student');
@@ -3449,16 +3456,22 @@ function MainApp() {
     );
     const isDefeated = (activeRaidData.bossHp || 0) <= 0;
 
-    const participantsList = Object.entries(activeRaidData.participants || {})
-      .map(([name, dmg]) => ({ name, damage: dmg }))
+    const cleanParticipants = Object.entries(activeRaidData.participants || {}).map(([key, value]) => {
+      if (typeof value === 'number') return { name: key, damage: value };
+      if (typeof value === 'object' && value !== null) {
+        const nestedKey = Object.keys(value)[0];
+        return { name: `${key}.${nestedKey}`, damage: Number(value[nestedKey]) || 0 };
+      }
+      return { name: key, damage: 0 };
+    });
+
+    const participantsList = cleanParticipants
       .sort((a, b) => b.damage - a.damage)
       .slice(0, 5);
 
     const myUsername = user?.email?.split('@')[0] || 'guest';
-    const myDamage = activeRaidData.participants?.[myUsername] || 0;
-    const sortedAll = Object.entries(activeRaidData.participants || {}).sort(
-      (a, b) => b[1] - a[1]
-    );
+    const myDamage = cleanParticipants.find((p) => p.name === myUsername)?.damage || 0;
+    const sortedAll = [...cleanParticipants].sort((a, b) => b.damage - a.damage);
     const myRank = sortedAll.findIndex((p) => p[0] === myUsername) + 1;
 
     const isGoblin = selectedBoss.id === 'boss_1';
