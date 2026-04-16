@@ -242,55 +242,43 @@ const Shield = (p) => (
 // --- 2. БАЗОВЫЕ ДАННЫЕ И МАТЕМАТИКА ---
 const checkProfanity = (str) => {
   if (!str) return false;
-  let cleanStr = str.toLowerCase().replace(/[^a-zа-яё0-9]/g, '');
-  const ruBadWords = [
-    'хуй',
-    'пизд',
-    'пидор',
-    'ебан',
-    'бляд',
-    'шлюх',
-    'залуп',
-    'мудак',
-    'гондон',
-    'сука',
-    'хер',
-    'дроч',
-    'манд',
-    'даун',
-    'дебил',
-    'уебок',
-    'соси',
-    'очко',
-    'жопа',
-    'гнид',
-    'мраз',
-    'твар',
-    'лох',
-  ];
-  const enBadWords = [
-    'fuck',
-    'bitch',
-    'shit',
-    'cunt',
-    'dick',
-    'cock',
-    'pussy',
-    'whore',
-    'slut',
-    'nigg',
-    'gay',
-    'asshole',
-    'bastard',
-    'porno',
-    'boob',
-    'tits',
-  ];
-  for (let word of [cleanStr]) {
-    for (let root of [...enBadWords, ...ruBadWords]) {
-      if (word.includes(root)) return true;
-    }
+
+  let normalized = str.toLowerCase();
+
+  const leetMap = {
+    '0': 'о', '1': 'и', '3': 'з', '4': 'ч', '5': 'с', '6': 'б', '7': 'т', '8': 'в', '9': 'г',
+    '@': 'а', 'v': 'в', 'v': 'в', '$': 'с', '!': 'и', 'a': 'а', 'e': 'е', 'o': 'о',
+    'i': 'и', 'u': 'у', 'y': 'у', 'x': 'х', 'h': 'х', 'c': 'с', 'k': 'к', 'p': 'р',
+    'b': 'б', 'd': 'd', 'w': 'в', 'n': 'н', 'm': 'м', 'l': 'л', 'r': 'р', 't': 'т',
+    'g': 'г', 'f': 'ф', 's': 'с', 'j': 'ж', 'q': 'к', 'z': 'з',
+  };
+
+  for (const [eng, rus] of Object.entries(leetMap)) {
+    const regex = new RegExp(eng, 'g');
+    normalized = normalized.replace(regex, rus);
   }
+
+  let cleanStr = normalized.replace(/[^а-яёa-z]/g, '');
+
+  cleanStr = cleanStr.replace(/(.)\1{2,}/g, '$1');
+
+  const ruBadWords = [
+    'хуй', 'пизд', 'пидор', 'ебан', 'бляд', 'шлюх', 'залуп', 'мудак',
+    'гондон', 'сука', 'хер', 'дроч', 'манд', 'даун', 'дебил', 'уебок',
+    'соси', 'очко', 'жопа', 'гнид', 'мраз', 'твар', 'лох',
+  ];
+
+  const enBadWords = [
+    'fuck', 'bitch', 'shit', 'cunt', 'dick', 'cock', 'pussy', 'whore',
+    'slut', 'nigg', 'gay', 'asshole', 'bastard', 'porno', 'boob', 'tits',
+  ];
+
+  const allBadWords = [...enBadWords, ...ruBadWords];
+
+  for (const word of allBadWords) {
+    if (cleanStr.includes(word)) return true;
+  }
+
   return false;
 };
 
@@ -1664,6 +1652,15 @@ function MainApp() {
     // Автогенерация имени, если ребенок ничего не ввел
     const finalSquadName =
       newSquadName?.trim() || `Отряд ${user?.email?.split('@')[0] || 'Героев'}`;
+
+    if (checkProfanity(finalSquadName)) {
+      setRewardModal({
+        title: 'Ошибка',
+        reward: 'Название отряда содержит запрещённое содержимое. Выбери другое имя!',
+        icon: '❌',
+      });
+      return;
+    }
     const todayStr = getTodayString();
     const roomId = `squad_${Date.now()}_${todayStr}`;
     const squadData = {
@@ -2244,35 +2241,49 @@ function MainApp() {
         earnedCoinsLocal += 20;
       }
     } else {
-      // --- АНТИ-ЧИТ ДЛЯ СВОБОДНОЙ ИГРЫ (ДИНАМИЧЕСКИЙ МНОЖИТЕЛЬ) ---
-      let multiplier = 1.0;
+      // --- ENTERPRISE ANTI-CHEAT ДЛЯ СВОБОДНОЙ ИГРЫ (COMPLEXITY GATE) ---
       const setts = freeplaySettings || {};
-      
-      // 1. Действия (Умножение и смешанные режимы дают больше)
-      if (setts.mode === 'muldiv') multiplier += 0.5;
-      if (setts.mode === 'mixed') multiplier += 1.0;
-      
-      // 2. Длина примера (3 числа решать сложнее, чем 2)
-      if (setts.terms === 3) multiplier += 1.0;
-      
-      // 3. Размер чисел (чем больше числа, тем выше награда)
-      const maxVal = Math.max(setts.ranges?.addSub || 0, setts.ranges?.mulDiv || 0);
-      if (maxVal >= 50 && maxVal < 100) multiplier += 0.5;
-      else if (maxVal >= 100 && maxVal < 500) multiplier += 1.0;
-      else if (maxVal >= 500) multiplier += 2.0;
-      
-      // 4. Таймер (мало времени = стресс = бонус. Много времени = штраф)
-      if (setts.timeLimit <= 60) multiplier += 0.5;
-      else if (setts.timeLimit >= 180) multiplier -= 0.3;
-      
-      multiplier = Math.max(0.1, multiplier); // Защита от ухода в минус
-      
+      const maxNumber = Math.max(setts.ranges?.addSub || 0, setts.ranges?.mulDiv || 0);
+      const termsCount = setts.terms || 2;
+
+      let operationCoeff = 1;
+      if (setts.mode === 'addsub') operationCoeff = 0.5;
+      else if (setts.mode === 'muldiv') operationCoeff = 2.0;
+      else if (setts.mode === 'mixed') operationCoeff = 1.5;
+
+      const complexity = maxNumber * termsCount * operationCoeff;
+      const minComplexityPassed = !(
+        (maxNumber < 10 && (setts.mode === 'addsub')) ||
+        (maxNumber < 5)
+      );
+
+      let multiplier = 1.0;
+      if (minComplexityPassed) {
+        if (setts.mode === 'muldiv') multiplier += 0.5;
+        if (setts.mode === 'mixed') multiplier += 1.0;
+        if (setts.terms === 3) multiplier += 1.0;
+
+        if (maxNumber >= 50 && maxNumber < 100) multiplier += 0.5;
+        else if (maxNumber >= 100 && maxNumber < 500) multiplier += 1.0;
+        else if (maxNumber >= 500) multiplier += 2.0;
+
+        if (setts.timeLimit <= 60) multiplier += 0.5;
+        else if (setts.timeLimit >= 180) multiplier -= 0.3;
+      }
+
+      multiplier = Math.min(3.0, Math.max(0.1, multiplier));
+
       const correctAnswers = finalState?.correct || 0;
-      
-      // Итог: 2 XP и 1 Монета за каждый пример умножаются на сложность
-      earnedPoints = Math.floor((correctAnswers * 2) * multiplier);
-      earnedCoinsLocal = Math.floor((correctAnswers * 1) * multiplier);
-      // -------------------------------------------------------------
+
+      if (!minComplexityPassed) {
+        console.log('Сложность заблокирована:', {complexity, maxNumber, mode: setts.mode});
+        earnedPoints = 0;
+        earnedCoinsLocal = 0;
+      } else {
+        earnedPoints = Math.floor((correctAnswers * 2) * multiplier);
+        earnedCoinsLocal = Math.floor((correctAnswers * 1) * multiplier);
+      }
+      // ---------------------------------------------------------------
     }
 
     const newScore = (score || 0) + earnedPoints;
@@ -2285,6 +2296,19 @@ function MainApp() {
         freeplaySettings?.level === 'custom'
           ? 'Свой'
           : LEVELS[freeplaySettings?.level]?.label || 'Тренировка';
+    }
+
+    let complexityWarning = '';
+    if (!isCampaign) {
+      const setts = freeplaySettings || {};
+      const maxNumber = Math.max(setts.ranges?.addSub || 0, setts.ranges?.mulDiv || 0);
+      const minComplexityPassed = !(
+        (maxNumber < 10 && (setts.mode === 'addsub')) ||
+        (maxNumber < 5)
+      );
+      if (!minComplexityPassed) {
+        complexityWarning = 'Слишком легко! Для получения наград увеличь сложность';
+      }
     }
 
     const sessionResult = {
@@ -2304,6 +2328,7 @@ function MainApp() {
       incorrect: finalState?.incorrect || 0,
       target: finalState?.target || 0,
       isCampaign: isCampaign,
+      complexityWarning: complexityWarning,
     };
     const safeHistory = Array.isArray(history) ? history : [];
     const newHistory = [sessionResult, ...safeHistory].slice(0, 100);
