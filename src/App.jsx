@@ -5197,7 +5197,7 @@ function MainApp() {
   );
 }
 
-// --- 5. ERROR BOUNDARY (ПРЕДОХРАНИТЕЛЬ ОТ БЕЛОГО ЭКРАНА) ---
+// --- 5. ERROR BOUNDARY (ПРЕДОХРАНИТЕЛЬ ОТ БЕЛОГО ЭКРАНАа) ---
 class ErrorBoundary extends React.Component {
   constructor(props) {
     super(props);
