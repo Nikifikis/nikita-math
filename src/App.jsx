@@ -16,64 +16,14 @@ const firebaseConfig = {
 const isCloudEnabled =
   firebaseConfig.apiKey && firebaseConfig.apiKey.length > 5;
 const APP_ID = 'nikita-math-platform';
-const PRIVATE_SAVE_DELAY_MS = 30000;
-const PUBLIC_SAVE_DELAY_MS = 45000;
-const RAID_FLUSH_DELAY_MS = 5000;
-const LEADERBOARD_LIMIT = 100;
-const LEADERBOARD_CACHE_TTL_MS = 2 * 60 * 1000;
-const HISTORY_LIMIT = 100;
-const LEADERBOARD_CACHE_KEY = 'nikitaMathLeaderboardCache';
 let auth = null;
 let db = null;
-let persistenceInitialized = false;
 
-if (isCloudEnabled) {
-  if (!firebase.apps.length) {
-    firebase.initializeApp(firebaseConfig);
-  }
+if (isCloudEnabled && !firebase.apps.length) {
+  firebase.initializeApp(firebaseConfig);
   auth = firebase.auth();
   db = firebase.firestore();
-
-  if (!persistenceInitialized && typeof window !== 'undefined') {
-    persistenceInitialized = true;
-    db.enablePersistence({ synchronizeTabs: true }).catch((error) => {
-      const code = error?.code || 'unknown';
-      if (code !== 'failed-precondition' && code !== 'unimplemented') {
-        console.error('Не удалось включить Firestore persistence:', error);
-      }
-    });
-  }
 }
-
-const chunkArray = (items, size) => {
-  const chunks = [];
-  for (let i = 0; i < items.length; i += size) {
-    chunks.push(items.slice(i, i + size));
-  }
-  return chunks;
-};
-
-const getLeaderboardScore = (profile = {}) => {
-  if (typeof profile.leaderboardScore === 'number') return profile.leaderboardScore;
-  if (typeof profile.score === 'number') return profile.score;
-  return (profile.unlockedLevel || 1) * 10 * ((profile.campaignPace || 10) / 5);
-};
-
-const parseHistoryValue = (value) => {
-  if (!value) return [];
-  if (Array.isArray(value)) return value;
-  if (typeof value === 'string') {
-    try {
-      const parsed = JSON.parse(value);
-      return Array.isArray(parsed) ? parsed : [];
-    } catch (error) {
-      return [];
-    }
-  }
-  return [];
-};
-
-const getUsernameFromUser = (usr) => usr?.email?.split('@')?.[0] || null;
 
 // --- 1. ИКОНКИ (SVG) ---
 const Icon = ({ children, size = 24, className = '', fill = 'none' }) => (
@@ -436,7 +386,7 @@ const RAID_BOSSES = [
     id: 'boss_2',
     name: 'Кибер-Орк',
     icon: 'https://raw.githubusercontent.com/Nikifikis/nikita-math/refs/heads/main/public/avatars/Boss-lvl2.png',
-    hp: 50000,
+    hp: 200000,
     league: 'Серебряная Лига',
     bg: 'bg-gray-800/40',
     border: 'border-gray-500/50',
@@ -446,7 +396,7 @@ const RAID_BOSSES = [
     id: 'boss_3',
     name: 'Меха-Дракон',
     icon: 'https://raw.githubusercontent.com/Nikifikis/nikita-math/refs/heads/main/public/avatars/boss-lvl3.png',
-    hp: 100000,
+    hp: 1000000,
     league: 'Золотая Лига',
     bg: 'bg-yellow-900/20',
     border: 'border-yellow-500/50',
@@ -456,7 +406,7 @@ const RAID_BOSSES = [
     id: 'boss_4',
     name: 'Разрушитель Миров',
     icon: 'https://raw.githubusercontent.com/Nikifikis/nikita-math/refs/heads/main/public/avatars/boss-lvl4.png',
-    hp: 500000,
+    hp: 2000000,
     league: 'Лига Мастеров',
     bg: 'bg-purple-900/20',
     border: 'border-purple-500/50',
@@ -650,16 +600,16 @@ const SUPER_IMPLANTS = [
     name: 'Нейро-ускоритель',
     icon: '🧠',
     price: 150,
-    dmg: 120,
-    desc: '+120 Урона по боссам',
+    dmg: 100,
+    desc: '+100 Урона по боссам',
   },
   {
     id: 'imp_god',
     name: 'Чип Разрушителя',
     icon: '💥',
     price: 350,
-    dmg: 300,
-    desc: '+300 Урона по боссам',
+    dmg: 150,
+    desc: '+150 Урона по боссам',
   },
 ];
 
@@ -1022,6 +972,7 @@ function MainApp() {
   const [role, setRole] = useState('student');
   const [classes, setClasses] = useState([]);
   const [classProfiles, setClassProfiles] = useState({});
+  const [myPublicProfile, setMyPublicProfile] = useState(null);
 
   const [activeClassId, setActiveClassId] = useState(null);
   const [newClassName, setNewClassName] = useState('');
@@ -1052,11 +1003,6 @@ function MainApp() {
   const publicSaveTimer = useRef(null);
   const pendingRaidDamage = useRef(0);
   const raidDamageTimer = useRef(null);
-  const raidTargetRef = useRef({ roomId: null, username: null });
-  const leaderboardCacheRef = useRef({ timestamp: 0, data: [] });
-  const lastPublicActivityRef = useRef(0);
-  const fsMetricsRef = useRef({});
-  const fsMetricsEnabledRef = useRef(false);
 
   // --- РЕЙДЫ ---
   const [selectedBoss, setSelectedBoss] = useState(null);
@@ -1123,71 +1069,6 @@ function MainApp() {
   const currentHour = currentTime.getHours();
   const isRaidActive =
     role === 'teacher' || (currentHour >= 12 && currentHour < 21);
-  const username = getUsernameFromUser(user);
-  const activeTeacherClassId =
-    activeClassId || (classes.length > 0 ? classes[0].id : null);
-  const activeTeacherClass = classes.find((c) => c.id === activeTeacherClassId) || null;
-
-  const ensureFsMetricBucket = (feature) => {
-    if (!fsMetricsRef.current[feature]) {
-      fsMetricsRef.current[feature] = {
-        reads: 0,
-        writes: 0,
-        listeners: 0,
-        docsLoaded: 0,
-        snapshotEvents: 0,
-        queuedWrites: 0,
-        flushedWrites: 0,
-        errorCount: 0,
-      };
-    }
-    return fsMetricsRef.current[feature];
-  };
-
-  const trackRead = (feature, docsCount = 0, isSnapshot = false) => {
-    if (!fsMetricsEnabledRef.current) return;
-    const bucket = ensureFsMetricBucket(feature);
-    bucket.reads += docsCount;
-    bucket.docsLoaded += docsCount;
-    if (isSnapshot) bucket.snapshotEvents += 1;
-  };
-
-  const trackWrite = (feature, docsCount = 1) => {
-    if (!fsMetricsEnabledRef.current) return;
-    const bucket = ensureFsMetricBucket(feature);
-    bucket.writes += docsCount;
-  };
-
-  const trackQueuedWrite = (feature) => {
-    if (!fsMetricsEnabledRef.current) return;
-    const bucket = ensureFsMetricBucket(feature);
-    bucket.queuedWrites += 1;
-  };
-
-  const trackFlushedWrite = (feature) => {
-    if (!fsMetricsEnabledRef.current) return;
-    const bucket = ensureFsMetricBucket(feature);
-    bucket.flushedWrites += 1;
-  };
-
-  const trackListen = (feature) => {
-    if (!fsMetricsEnabledRef.current) return;
-    const bucket = ensureFsMetricBucket(feature);
-    bucket.listeners += 1;
-  };
-
-  const trackErr = (feature) => {
-    if (!fsMetricsEnabledRef.current) return;
-    const bucket = ensureFsMetricBucket(feature);
-    bucket.errorCount += 1;
-  };
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const search = new URLSearchParams(window.location.search);
-    fsMetricsEnabledRef.current =
-      search.get('fsDebug') === '1' || window.localStorage.getItem('FS_METRICS') === '1';
-  }, []);
 
   // ИНИЦИАЛИЗАЦИЯ
   useEffect(() => {
@@ -1220,204 +1101,157 @@ function MainApp() {
         const sImpl = localStorage.getItem('nikitaMathImplants');
         if (sImpl) setOwnedImplants(JSON.parse(sImpl) || []);
         const sDaily = localStorage.getItem('nikitaMathLastDaily');
-        if (sDaily) setLastDailyChest(sDaily);
+        if (sDaily) setLastDailyChest(parseInt(sDaily, 10) || 0);
         const sClaimed = localStorage.getItem('nikitaMathClaimedRaids');
         if (sClaimed) setClaimedRaids(JSON.parse(sClaimed) || []);
         const sh = localStorage.getItem('nikitaMathHistory');
-        if (sh) setHistory(parseHistoryValue(sh));
+        if (sh) setHistory(JSON.parse(sh) || []);
       } catch (e) {
         console.error(e);
       }
       setAuthChecked(true);
-      setView('auth');
+      setView(user ? 'home' : 'auth');
       return;
     }
 
     const unsubscribe = auth.onAuthStateChanged((usr) => {
       setUser(usr);
       setAuthChecked(true);
-      setView(usr ? 'home' : 'auth');
-      if (!usr) {
-        setRole('student');
-        setClasses([]);
-        setClassProfiles({});
+      if (usr) {
+        setView('home');
+        db.collection('artifacts')
+          .doc(APP_ID)
+          .collection('users')
+          .doc(usr.uid)
+          .onSnapshot(
+            (doc) => {
+              if (doc.exists) {
+                const data = doc.data() || {};
+                if (data.role) setRole(data.role);
+                if (data.classes) {
+                  setClasses(data.classes || []);
+                } else if (data.myStudents && data.myStudents.length > 0) {
+                  const defaultClass = {
+                    id: 'default',
+                    name: 'Основной класс',
+                    students: data.myStudents,
+                  };
+                  setClasses([defaultClass]);
+                  safeSave({ classes: [defaultClass] });
+                } else {
+                  setClasses([]);
+                }
+
+                if (data.unlockedLevel1 !== undefined)
+                  setUnlockedLevel1(data.unlockedLevel1 || 1);
+                if (data.unlockedLevel2 !== undefined)
+                  setUnlockedLevel2(data.unlockedLevel2 || 1);
+                if (data.campaignPace !== undefined)
+                  setCampaignPace(data.campaignPace || 10);
+                if (data.score !== undefined) setScore(data.score || 0);
+                if (data.coins !== undefined) setCoins(data.coins || 0);
+                if (data.gems !== undefined) setGems(data.gems || 0);
+                if (data.inventory) setInventory(data.inventory || ['default']);
+                if (data.equippedAvatar) setEquippedAvatar(data.equippedAvatar);
+                if (data.cyborgLevel !== undefined)
+                  setCyborgLevel(data.cyborgLevel || 1);
+                if (data.ownedImplants)
+                  setOwnedImplants(data.ownedImplants || []);
+                if (data.lastDailyChest !== undefined)
+                  setLastDailyChest(data.lastDailyChest || 0);
+                if (data.claimedRaids) setClaimedRaids(data.claimedRaids || []);
+                if (data.history) {
+                  try {
+                    setHistory(JSON.parse(data.history) || []);
+                  } catch (e) {
+                    setHistory([]);
+                  }
+                }
+              }
+            },
+            (error) => console.error('Firestore error:', error)
+          );
+
+        const username = usr.email.split('@')[0];
+        db.collection('artifacts')
+          .doc(APP_ID)
+          .collection('public')
+          .doc('data')
+          .collection('profiles')
+          .doc(username)
+          .onSnapshot(
+            (doc) => {
+              if (doc.exists) setMyPublicProfile(doc.data());
+            },
+            (error) => console.error('Firestore error:', error)
+          );
+      } else {
+        setView('auth');
       }
     });
     return () => unsubscribe && unsubscribe();
-  }, []);
+  }, [role, user]);
 
   useEffect(() => {
-    if (!isCloudEnabled || !user?.uid) return;
-    trackListen('auth_bootstrap');
-    const unsub = db
-      .collection('artifacts')
-      .doc(APP_ID)
-      .collection('users')
-      .doc(user.uid)
-      .onSnapshot(
-        (doc) => {
-          trackRead('auth_bootstrap', doc.exists ? 1 : 0, true);
-          if (!doc.exists) return;
-          const data = doc.data() || {};
-          if (data.role) setRole(data.role);
-          if (data.classes) {
-            setClasses(data.classes || []);
-          } else if (data.myStudents && data.myStudents.length > 0) {
-            const defaultClass = {
-              id: 'default',
-              name: 'Основной класс',
-              students: data.myStudents,
-            };
-            setClasses([defaultClass]);
-          } else {
-            setClasses([]);
-          }
-
-          if (data.unlockedLevel1 !== undefined)
-            setUnlockedLevel1(data.unlockedLevel1 || 1);
-          if (data.unlockedLevel2 !== undefined)
-            setUnlockedLevel2(data.unlockedLevel2 || 1);
-          if (data.campaignPace !== undefined)
-            setCampaignPace(data.campaignPace || 10);
-          if (data.score !== undefined) setScore(data.score || 0);
-          if (data.coins !== undefined) setCoins(data.coins || 0);
-          if (data.gems !== undefined) setGems(data.gems || 0);
-          if (data.inventory) setInventory(data.inventory || ['default']);
-          if (data.equippedAvatar) setEquippedAvatar(data.equippedAvatar);
-          if (data.cyborgLevel !== undefined)
-            setCyborgLevel(data.cyborgLevel || 1);
-          if (data.ownedImplants) setOwnedImplants(data.ownedImplants || []);
-          if (data.lastDailyChest !== undefined)
-            setLastDailyChest(data.lastDailyChest || 0);
-          if (data.claimedRaids) setClaimedRaids(data.claimedRaids || []);
-          if (data.history !== undefined) {
-            setHistory(parseHistoryValue(data.history));
-          }
-        },
-        (error) => {
-          trackErr('auth_bootstrap');
-          console.error('Firestore error:', error);
-        }
-      );
-    return () => unsub();
-  }, [user?.uid]);
-
-  useEffect(() => {
-    if (!isCloudEnabled || role !== 'teacher' || !activeTeacherClass) {
-      setClassProfiles({});
-      return;
-    }
-    const activeStudents = [...new Set(activeTeacherClass.students || [])];
-    const activeStudentSet = new Set(activeStudents);
-    setClassProfiles((prev) =>
-      Object.fromEntries(
-        Object.entries(prev).filter(([studentName]) => activeStudentSet.has(studentName))
-      )
-    );
-    if (activeStudents.length === 0) {
-      setClassProfiles({});
-      return;
-    }
-
-    const unsubscribes = chunkArray(activeStudents, 10).map((studentChunk) => {
-      trackListen('teacher_roster');
+    if (!isCloudEnabled || role !== 'teacher' || classes.length === 0) return;
+    const allStudents = [...new Set(classes.flatMap((c) => c.students || []))];
+    if (allStudents.length === 0) return;
+    const unsubscribes = allStudents.map((studentName) => {
       return db
         .collection('artifacts')
         .doc(APP_ID)
         .collection('public')
         .doc('data')
         .collection('profiles')
-        .where(firebase.firestore.FieldPath.documentId(), 'in', studentChunk)
+        .doc(studentName)
         .onSnapshot(
-          (snap) => {
-            trackRead('teacher_roster', snap.size, true);
-            const updates = {};
-            snap.forEach((doc) => {
-              updates[doc.id] = doc.data();
-            });
-            setClassProfiles((prev) => {
-              const next = { ...prev };
-              studentChunk.forEach((studentName) => {
-                if (!updates[studentName]) delete next[studentName];
-              });
-              return { ...next, ...updates };
-            });
+          (doc) => {
+            if (doc.exists) {
+              setClassProfiles((prev) => ({
+                ...prev,
+                [studentName]: doc.data(),
+              }));
+            }
           },
-          (error) => {
-            trackErr('teacher_roster');
-            console.error('Firestore error:', error);
-          }
+          (error) => console.error('Firestore error:', error)
         );
     });
     return () => unsubscribes.forEach((unsub) => unsub());
-  }, [
-    role,
-    activeTeacherClassId,
-    (activeTeacherClass?.students || []).join('|'),
-  ]);
+  }, [role, classes]);
 
   // ПОДПИСКА НА СПИСОК ОТРЯДОВ С ЗАЩИТОЙ
   useEffect(() => {
-    if (view === 'raidSquadSelect' && selectedBoss?.id && isCloudEnabled) {
-      const applyRoomsSnapshot = (snap, shouldFilterLocally = false) => {
-        trackRead('raid_rooms_list', snap.size, true);
-        const rooms = [];
-        snap.forEach((doc) => {
-          const data = doc.data();
-          if (
-            !shouldFilterLocally ||
-            (data.bossId === selectedBoss.id && data.date === getTodayString())
-          ) {
-            rooms.push(data);
-          }
-        });
-        rooms.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
-        setRaidRooms(rooms);
-      };
-
-      trackListen('raid_rooms_list');
-      let fallbackUnsub = null;
+    if (view === 'raidSquadSelect' && selectedBoss && isCloudEnabled) {
       const unsub = db
         .collection('artifacts')
         .doc(APP_ID)
         .collection('public')
         .doc('data')
         .collection('raid_rooms')
-        .where('bossId', '==', selectedBoss.id)
-        .where('date', '==', getTodayString())
         .onSnapshot(
-          (snap) => applyRoomsSnapshot(snap),
+          (snap) => {
+            const rooms = [];
+            snap.forEach((doc) => {
+              const data = doc.data();
+              if (
+                data.bossId === selectedBoss.id &&
+                data.date === getTodayString()
+              ) {
+                rooms.push(data);
+              }
+            });
+            setRaidRooms(rooms);
+          },
           (error) => {
-            trackErr('raid_rooms_list');
             console.error('Ошибка при чтении комнат Босса:', error);
-            if (!fallbackUnsub) {
-              trackListen('raid_rooms_list');
-              fallbackUnsub = db
-                .collection('artifacts')
-                .doc(APP_ID)
-                .collection('public')
-                .doc('data')
-                .collection('raid_rooms')
-                .onSnapshot(
-                  (snap) => applyRoomsSnapshot(snap, true),
-                  (fallbackError) => {
-                    trackErr('raid_rooms_list');
-                    console.error('Fallback чтения комнат Босса:', fallbackError);
-                  }
-                );
-            }
           }
         );
-      return () => {
-        unsub();
-        if (fallbackUnsub) fallbackUnsub();
-      };
+      return () => unsub();
     }
-  }, [view, selectedBoss?.id]);
+  }, [view, selectedBoss]);
 
   useEffect(() => {
     if (view === 'raidGame' && activeRaidId && isCloudEnabled) {
-      trackListen('raid_room_live');
       const unsub = db
         .collection('artifacts')
         .doc(APP_ID)
@@ -1427,17 +1261,11 @@ function MainApp() {
         .doc(activeRaidId)
         .onSnapshot(
           (doc) => {
-            trackRead('raid_room_live', doc.exists ? 1 : 0, true);
             if (doc.exists) {
-              const nextData = doc.data();
-              setActiveRaidData(nextData);
-              setRaidRooms((prev) =>
-                (prev || []).map((room) => (room.id === activeRaidId ? nextData : room))
-              );
+              setActiveRaidData(doc.data());
             }
           },
           (error) => {
-            trackErr('raid_room_live');
             console.error('Ошибка обновления боя:', error);
           }
         );
@@ -1445,262 +1273,131 @@ function MainApp() {
     }
   }, [view, activeRaidId]);
 
-  const flushPrivateSave = () => {
-    if (saveTimer.current) {
-      clearTimeout(saveTimer.current);
-      saveTimer.current = null;
-    }
-    if (!isCloudEnabled || !user?.uid) return Promise.resolve(false);
-
-    const updatesToFlush = pendingUpdates.current;
-    if (!Object.keys(updatesToFlush).length) return Promise.resolve(false);
-
-    pendingUpdates.current = {};
-    trackWrite('progress_save_private', 1);
-    trackFlushedWrite('progress_save_private');
-
-    return db
-      .collection('artifacts')
-      .doc(APP_ID)
-      .collection('users')
-      .doc(user.uid)
-      .set(updatesToFlush, { merge: true })
-      .then(() => true)
-      .catch((error) => {
-        pendingUpdates.current = { ...updatesToFlush, ...pendingUpdates.current };
-        trackErr('progress_save_private');
-        console.error(error);
-        return false;
-      });
-  };
-
-  const flushPublicProfileSave = () => {
-    if (publicSaveTimer.current) {
-      clearTimeout(publicSaveTimer.current);
-      publicSaveTimer.current = null;
-    }
-    if (!isCloudEnabled || !username || role !== 'student') {
-      return Promise.resolve(false);
-    }
-
-    const updatesToFlush = pendingPublicUpdates.current;
-    if (!Object.keys(updatesToFlush).length) return Promise.resolve(false);
-
-    pendingPublicUpdates.current = {};
-    trackWrite('progress_save_public', 1);
-    trackFlushedWrite('progress_save_public');
-
-    return db
-      .collection('artifacts')
-      .doc(APP_ID)
-      .collection('public')
-      .doc('data')
-      .collection('profiles')
-      .doc(username)
-      .set(updatesToFlush, { merge: true })
-      .then(() => true)
-      .catch((error) => {
-        pendingPublicUpdates.current = {
-          ...updatesToFlush,
-          ...pendingPublicUpdates.current,
-        };
-        trackErr('progress_save_public');
-        console.error(error);
-        return false;
-      });
-  };
-
-  const flushRaidDamage = () => {
-    if (raidDamageTimer.current) {
-      clearTimeout(raidDamageTimer.current);
-      raidDamageTimer.current = null;
-    }
-
-    const roomId = activeRaidId || raidTargetRef.current.roomId;
-    const raidUsername = username || raidTargetRef.current.username;
-    const damageToSend = pendingRaidDamage.current;
-    if (!isCloudEnabled || !roomId || !raidUsername || damageToSend <= 0) {
-      return Promise.resolve(false);
-    }
-
-    pendingRaidDamage.current = 0;
-    trackWrite('raid_damage_flush', 1);
-    trackFlushedWrite('raid_damage_flush');
-
-    return db
-      .collection('artifacts')
-      .doc(APP_ID)
-      .collection('public')
-      .doc('data')
-      .collection('raid_rooms')
-      .doc(roomId)
-      .update({
-        bossHp: firebase.firestore.FieldValue.increment(-damageToSend),
-        [`participants.${raidUsername}`]:
-          firebase.firestore.FieldValue.increment(damageToSend),
-      })
-      .then(() => true)
-      .catch((error) => {
-        pendingRaidDamage.current += damageToSend;
-        trackErr('raid_damage_flush');
-        console.error('Ошибка Firestore:', error);
-        return false;
-      });
-  };
-
   const safeSave = (updates, isUrgent = false) => {
-    const normalizedUpdates = { ...updates };
-    if (normalizedUpdates.history !== undefined) {
-      normalizedUpdates.history = parseHistoryValue(normalizedUpdates.history);
-    }
-
+    // 1. ЛОКАЛЬНЫЙ БЭКАП (Моментально сохраняем в браузере ВСЕГДА)
     try {
-      if (normalizedUpdates.unlockedLevel1 !== undefined)
-        localStorage.setItem('nikitaMathLevel1', normalizedUpdates.unlockedLevel1);
-      if (normalizedUpdates.unlockedLevel2 !== undefined)
-        localStorage.setItem('nikitaMathLevel2', normalizedUpdates.unlockedLevel2);
-      if (normalizedUpdates.campaignPace !== undefined)
-        localStorage.setItem('nikitaMathPace', normalizedUpdates.campaignPace);
-      if (normalizedUpdates.score !== undefined)
-        localStorage.setItem('nikitaMathScore', normalizedUpdates.score);
-      if (normalizedUpdates.coins !== undefined)
-        localStorage.setItem('nikitaMathCoins', normalizedUpdates.coins);
-      if (normalizedUpdates.gems !== undefined)
-        localStorage.setItem('nikitaMathGems', normalizedUpdates.gems);
-      if (normalizedUpdates.inventory !== undefined)
+      if (updates.unlockedLevel1 !== undefined) localStorage.setItem('nikitaMathLevel1', updates.unlockedLevel1);
+      if (updates.unlockedLevel2 !== undefined) localStorage.setItem('nikitaMathLevel2', updates.unlockedLevel2);
+      if (updates.campaignPace !== undefined) localStorage.setItem('nikitaMathPace', updates.campaignPace);
+      if (updates.score !== undefined) localStorage.setItem('nikitaMathScore', updates.score);
+      if (updates.coins !== undefined) localStorage.setItem('nikitaMathCoins', updates.coins);
+      if (updates.gems !== undefined) localStorage.setItem('nikitaMathGems', updates.gems);
+      if (updates.inventory !== undefined) localStorage.setItem('nikitaMathInventory', JSON.stringify(updates.inventory || []));
+      if (updates.equippedAvatar !== undefined) localStorage.setItem('nikitaMathEquipped', updates.equippedAvatar);
+      if (updates.cyborgLevel !== undefined) localStorage.setItem('nikitaMathCyborgLvl', updates.cyborgLevel);
+      if (updates.ownedImplants !== undefined) localStorage.setItem('nikitaMathImplants', JSON.stringify(updates.ownedImplants || []));
+      if (updates.lastDailyChest !== undefined) localStorage.setItem('nikitaMathLastDaily', updates.lastDailyChest);
+      if (updates.claimedRaids !== undefined) localStorage.setItem('nikitaMathClaimedRaids', JSON.stringify(updates.claimedRaids || []));
+      if (updates.history !== undefined) {
         localStorage.setItem(
-          'nikitaMathInventory',
-          JSON.stringify(normalizedUpdates.inventory || [])
-        );
-      if (normalizedUpdates.equippedAvatar !== undefined)
-        localStorage.setItem('nikitaMathEquipped', normalizedUpdates.equippedAvatar);
-      if (normalizedUpdates.cyborgLevel !== undefined)
-        localStorage.setItem('nikitaMathCyborgLvl', normalizedUpdates.cyborgLevel);
-      if (normalizedUpdates.ownedImplants !== undefined)
-        localStorage.setItem(
-          'nikitaMathImplants',
-          JSON.stringify(normalizedUpdates.ownedImplants || [])
-        );
-      if (normalizedUpdates.lastDailyChest !== undefined)
-        localStorage.setItem('nikitaMathLastDaily', normalizedUpdates.lastDailyChest);
-      if (normalizedUpdates.claimedRaids !== undefined)
-        localStorage.setItem(
-          'nikitaMathClaimedRaids',
-          JSON.stringify(normalizedUpdates.claimedRaids || [])
-        );
-      if (normalizedUpdates.history !== undefined) {
-        localStorage.setItem(
-          'nikitaMathHistory',
-          JSON.stringify(normalizedUpdates.history)
+          'nikitaMathHistory', 
+          Array.isArray(updates.history) ? JSON.stringify(updates.history) : '[]'
         );
       }
     } catch (e) {
       console.error('Ошибка сохранения в localStorage', e);
     }
 
-    if (isCloudEnabled && user?.uid) {
-      pendingUpdates.current = {
-        ...pendingUpdates.current,
-        ...normalizedUpdates,
-      };
-      trackQueuedWrite('progress_save_private');
+    // 2. ОНЛАЙН РЕЖИМ (Умное сохранение в Firebase с корзиной)
+    if (isCloudEnabled && user) {
+      // Складываем новые данные в "корзину"
+      pendingUpdates.current = { ...pendingUpdates.current, ...updates };
 
-      if (saveTimer.current) clearTimeout(saveTimer.current);
+      // Сбрасываем старый таймер, если он был
+      if (saveTimer.current) {
+        clearTimeout(saveTimer.current);
+      }
 
+      // Если срочно (покупка в магазине) - отправляем корзину мгновенно
       if (isUrgent) {
-        void flushPrivateSave();
+        db.collection('artifacts')
+          .doc(APP_ID)
+          .collection('users')
+          .doc(user.uid)
+          .set(pendingUpdates.current, { merge: true })
+          .catch((e) => console.error(e));
+        
+        pendingUpdates.current = {}; // Очищаем корзину после отправки
       } else {
+        // Иначе ждем 10 секунд. Если решат еще пример - таймер обнулится.
         saveTimer.current = setTimeout(() => {
-          void flushPrivateSave();
-        }, PRIVATE_SAVE_DELAY_MS);
+          db.collection('artifacts')
+            .doc(APP_ID)
+            .collection('users')
+            .doc(user.uid)
+            .set(pendingUpdates.current, { merge: true })
+            .catch((e) => console.error(e));
+          
+          pendingUpdates.current = {}; // Очищаем корзину после отправки
+        }, 20000); // 20 секунд задержки
       }
     }
   };
 
-  const updatePublicProfile = (patch, options = {}) => {
-    if (!isCloudEnabled || !user?.uid || role !== 'student' || !username) return;
+  const updatePublicProfile = (
+    level1,
+    level2,
+    pace,
+    newScore,
+    newCoins,
+    newGems,
+    newAvatar,
+    isUrgent = false // <-- Добавили флаг СРОЧНО
+  ) => {
+    if (isCloudEnabled && user && role === 'student') {
+      const username = user.email.split('@')[0];
 
-    const sanitizedPatch = Object.fromEntries(
-      Object.entries(patch || {}).filter(([, value]) => value !== undefined)
-    );
+      // 1. Формируем свежие данные
+      const newData = {
+        username: username,
+        unlockedLevel: level1 || 1,
+        unlockedLevel2: level2 || 1,
+        campaignPace: pace || 10,
+        score: newScore || 0,
+        coins: newCoins || 0,
+        gems: newGems || 0,
+        avatar: newAvatar || equippedAvatar,
+        lastActive: Date.now(),
+      };
 
-    if (options.includeActivity) {
-      const now = Date.now();
-      if (now - lastPublicActivityRef.current > 10 * 60 * 1000) {
-        sanitizedPatch.lastActive = now;
-        lastPublicActivityRef.current = now;
+      // 2. Складываем в "публичную корзину"
+      pendingPublicUpdates.current = { ...pendingPublicUpdates.current, ...newData };
+
+      // 3. Сбрасываем старый таймер
+      if (publicSaveTimer.current) {
+        clearTimeout(publicSaveTimer.current);
       }
-    }
 
-    if (!Object.keys(sanitizedPatch).length) return;
-
-    const nextPatch = {
-      username,
-      ...sanitizedPatch,
-    };
-
-    pendingPublicUpdates.current = {
-      ...pendingPublicUpdates.current,
-      ...nextPatch,
-    };
-    trackQueuedWrite('progress_save_public');
-
-    if (publicSaveTimer.current) clearTimeout(publicSaveTimer.current);
-
-    if (options.isUrgent) {
-      void flushPublicProfileSave();
-    } else {
-      publicSaveTimer.current = setTimeout(() => {
-        void flushPublicProfileSave();
-      }, PUBLIC_SAVE_DELAY_MS);
+      // 4. Умная отправка
+      if (isUrgent) {
+        // Если покупка в магазине - отправляем сразу!
+        db.collection('artifacts')
+          .doc(APP_ID)
+          .collection('public')
+          .doc('data')
+          .collection('profiles')
+          .doc(username)
+          .set(pendingPublicUpdates.current, { merge: true })
+          .catch((e) => console.error(e));
+        
+        pendingPublicUpdates.current = {}; // Очищаем корзину
+      } else {
+        // Если просто решил пример - ждем 10 секунд и отправляем пачкой!
+        publicSaveTimer.current = setTimeout(() => {
+          db.collection('artifacts')
+            .doc(APP_ID)
+            .collection('public')
+            .doc('data')
+            .collection('profiles')
+            .doc(username)
+            .set(pendingPublicUpdates.current, { merge: true })
+            .catch((e) => console.error(e));
+          
+          pendingPublicUpdates.current = {}; // Очищаем корзину
+        }, 10000);
+      }
     }
   };
-
-  useEffect(() => {
-    if (activeRaidId) {
-      raidTargetRef.current = { roomId: activeRaidId, username };
-    }
-  }, [activeRaidId, username]);
-
-  useEffect(() => {
-    if (!isCloudEnabled || typeof window === 'undefined') return;
-
-    const flushAllPendingCloudState = () => {
-      void flushPrivateSave();
-      void flushPublicProfileSave();
-      void flushRaidDamage();
-
-      if (!fsMetricsEnabledRef.current) return;
-      const rows = Object.entries(fsMetricsRef.current).map(([feature, stats]) => ({
-        feature,
-        reads: stats.reads,
-        writes: stats.writes,
-        listeners: stats.listeners,
-        docsLoaded: stats.docsLoaded,
-        snapshotEvents: stats.snapshotEvents,
-        queuedWrites: stats.queuedWrites,
-        flushedWrites: stats.flushedWrites,
-        errorCount: stats.errorCount,
-      }));
-
-      if (rows.length > 0) {
-        console.table(rows);
-      }
-    };
-
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'hidden') {
-        flushAllPendingCloudState();
-      }
-    };
-
-    window.addEventListener('beforeunload', flushAllPendingCloudState);
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => {
-      window.removeEventListener('beforeunload', flushAllPendingCloudState);
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
-  }, [isCloudEnabled, user?.uid, role, activeRaidId, username]);
 
   const handleBuyAvatar = (avatar) => {
     const safeInventory = inventory || [];
@@ -1723,7 +1420,20 @@ function MainApp() {
       setCoins(newCoins);
       setGems(newGems);
       setInventory(newInventory);
+      
+      // 🔥 ВОТ ТУТ МЫ ДОБАВИЛИ true ДЛЯ МОМЕНТАЛЬНОГО СОХРАНЕНИЯ:
       safeSave({ coins: newCoins, gems: newGems, inventory: newInventory }, true);
+      
+      updatePublicProfile(
+        unlockedLevel1,
+        unlockedLevel2,
+        campaignPace,
+        score,
+        newCoins,
+        newGems,
+        equippedAvatar,
+        true // Срочное обновление рейтинга
+      );
     }
   };
 
@@ -1736,7 +1446,16 @@ function MainApp() {
       const newImplants = [...safeImplants, implant.id];
       setGems(newGems);
       setOwnedImplants(newImplants);
-      safeSave({ gems: newGems, ownedImplants: newImplants }, true);
+      safeSave({ gems: newGems, ownedImplants: newImplants });
+      updatePublicProfile(
+        unlockedLevel1,
+        unlockedLevel2,
+        campaignPace,
+        score,
+        coins,
+        newGems,
+        equippedAvatar
+      );
     }
   };
 
@@ -1753,7 +1472,16 @@ function MainApp() {
       const newLevel = safeLevel + 1;
       setCoins(newCoins);
       setCyborgLevel(newLevel);
-      safeSave({ coins: newCoins, cyborgLevel: newLevel }, true);
+      safeSave({ coins: newCoins, cyborgLevel: newLevel });
+      updatePublicProfile(
+        unlockedLevel1,
+        unlockedLevel2,
+        campaignPace,
+        score,
+        newCoins,
+        gems,
+        equippedAvatar
+      );
     }
   };
 
@@ -1762,7 +1490,15 @@ function MainApp() {
     if (safeInventory.includes(id)) {
       setEquippedAvatar(id);
       safeSave({ equippedAvatar: id });
-      updatePublicProfile({ avatar: id }, { includeActivity: true });
+      updatePublicProfile(
+        unlockedLevel1,
+        unlockedLevel2,
+        campaignPace,
+        score,
+        coins,
+        gems,
+        id
+      );
     }
   };
 
@@ -1890,7 +1626,18 @@ function MainApp() {
     setCoins(finalCoins);
     setGems(finalGems);
     setInventory(newInventory);
-    safeSave({ coins: finalCoins, gems: finalGems, inventory: newInventory }, true);
+    safeSave({ coins: finalCoins, gems: finalGems, inventory: newInventory }, true); // <--- ДОБАВИЛИ true
+
+    updatePublicProfile(
+      unlockedLevel1,
+      unlockedLevel2,
+      campaignPace,
+      score,
+      finalCoins,
+      finalGems,
+      equippedAvatar,
+      true // <--- ДОБАВИЛИ true
+    );
   };
 
   const selectRaidBoss = (boss) => {
@@ -2048,13 +1795,32 @@ function MainApp() {
 
         // 2. Накапливаем урон в "корзине"
         pendingRaidDamage.current += damage;
-        trackQueuedWrite('raid_damage_flush');
 
         // 3. Запускаем таймер, ТОЛЬКО если он еще не запущен
         if (!raidDamageTimer.current) {
           raidDamageTimer.current = setTimeout(() => {
-            void flushRaidDamage();
-          }, RAID_FLUSH_DELAY_MS);
+            const damageToSend = pendingRaidDamage.current;
+            
+            if (damageToSend > 0) {
+              pendingRaidDamage.current = 0; // Очищаем накопленный урон перед отправкой
+              
+              // ВАЖНО: Проверь, чтобы путь к коллекции совпадал с тем, где лежат данные!
+              db.collection('artifacts')
+                .doc(APP_ID) // Убедись, что APP_ID определен
+                .collection('public')
+                .doc('data')
+                .collection('raid_rooms')
+                .doc(activeRaidId)
+                .update({
+                  bossHp: firebase.firestore.FieldValue.increment(-damageToSend),
+                  [`participants.${myUsername}`]: firebase.firestore.FieldValue.increment(damageToSend),
+                })
+                .then(() => console.log(`Урон ${damageToSend} успешно отправлен`))
+                .catch((e) => console.error('Ошибка Firestore:', e));
+            }
+            
+            raidDamageTimer.current = null; // Разрешаем запуск следующего цикла через 3 сек
+          }, 3000); 
         }
       } else if (activeRaidData) {
         const newHp = activeRaidData.bossHp - damage;
@@ -2108,8 +1874,6 @@ function MainApp() {
       return;
     }
 
-    void flushRaidDamage();
-
     const cleanParticipants = Object.entries(activeRaidData.participants || {}).map(([key, value]) => {
       if (typeof value === 'number') return { name: key, damage: value };
       if (typeof value === 'object' && value !== null) {
@@ -2128,24 +1892,24 @@ function MainApp() {
 
     let coinBase =
       selectedBoss.id === 'boss_1'
-        ? 500
-        : selectedBoss.id === 'boss_2'
         ? 1000
-        : selectedBoss.id === 'boss_3'
+        : selectedBoss.id === 'boss_2'
         ? 5000
+        : selectedBoss.id === 'boss_3'
+        ? 50000
         : selectedBoss.id === 'boss_4'
-        ? 10000
-        : 50000;
+        ? 150000
+        : 500000;
     let gemBase =
       selectedBoss.id === 'boss_1'
         ? 3
         : selectedBoss.id === 'boss_2'
         ? 5
         : selectedBoss.id === 'boss_3'
-        ? 10
+        ? 25
         : selectedBoss.id === 'boss_4'
-        ? 30
-        : 60;
+        ? 50
+        : 100;
 
     let cAdd = coinBase,
       gAdd = gemBase,
@@ -2171,7 +1935,16 @@ function MainApp() {
     setCoins(newCoins);
     setGems(newGems);
     setClaimedRaids(newClaimed);
-    safeSave({ coins: newCoins, gems: newGems, claimedRaids: newClaimed }, true);
+    safeSave({ coins: newCoins, gems: newGems, claimedRaids: newClaimed });
+    updatePublicProfile(
+      unlockedLevel1,
+      unlockedLevel2,
+      campaignPace,
+      score,
+      newCoins,
+      newGems,
+      equippedAvatar
+    );
 
     setRewardModal({
       title: title,
@@ -2233,7 +2006,6 @@ function MainApp() {
         email,
         passwordInput
       );
-      trackWrite('signup_init', 1);
       await db
         .collection('artifacts')
         .doc(APP_ID)
@@ -2255,7 +2027,6 @@ function MainApp() {
           ownedImplants: [],
         });
       if (!isTeacherCheckbox) {
-        trackWrite('signup_init', 1);
         await db
           .collection('artifacts')
           .doc(APP_ID)
@@ -2269,7 +2040,8 @@ function MainApp() {
             unlockedLevel2: 1,
             campaignPace: 10,
             score: 0,
-            leaderboardScore: 0,
+            coins: 0,
+            gems: 0,
             avatar: 'default',
             lastActive: Date.now(),
           });
@@ -2280,12 +2052,7 @@ function MainApp() {
   };
 
   const handleLogout = () => {
-    if (isCloudEnabled) {
-      void flushPrivateSave();
-      void flushPublicProfileSave();
-      void flushRaidDamage();
-      auth.signOut();
-    }
+    if (isCloudEnabled) auth.signOut();
     setUnlockedLevel1(1);
     setUnlockedLevel2(1);
     setSelectedLevel1(1);
@@ -2294,6 +2061,7 @@ function MainApp() {
     setRole('student');
     setClasses([]);
     setClassProfiles({});
+    setMyPublicProfile(null);
     setScore(0);
     setCoins(0);
     setGems(0);
@@ -2312,78 +2080,34 @@ function MainApp() {
 
   const loadGlobalLeaderboard = async () => {
     if (!isCloudEnabled || !user) return;
-    setView('globalLeaderboard');
-    const now = Date.now();
-    const inMemoryCache = leaderboardCacheRef.current;
-    if (
-      inMemoryCache.data.length > 0 &&
-      now - inMemoryCache.timestamp < LEADERBOARD_CACHE_TTL_MS
-    ) {
-      setGlobalProfiles(inMemoryCache.data);
-      return;
-    }
-
-    if (typeof window !== 'undefined') {
-      try {
-        const cachedRaw = window.localStorage.getItem(LEADERBOARD_CACHE_KEY);
-        if (cachedRaw) {
-          const cached = JSON.parse(cachedRaw);
-          if (
-            cached?.timestamp &&
-            Array.isArray(cached?.data) &&
-            now - cached.timestamp < LEADERBOARD_CACHE_TTL_MS
-          ) {
-            leaderboardCacheRef.current = cached;
-            setGlobalProfiles(cached.data);
-            return;
-          }
-        }
-      } catch (error) {
-        console.error('Ошибка чтения кэша рейтинга:', error);
-      }
-    }
-
     setIsLoadingLeaderboard(true);
+    setView('globalLeaderboard');
     try {
-      const profilesRef = db
+      const snapshot = await db
         .collection('artifacts')
         .doc(APP_ID)
         .collection('public')
         .doc('data')
-        .collection('profiles');
-
-      let snapshot;
-      try {
-        snapshot = await profilesRef.orderBy('score', 'desc').limit(LEADERBOARD_LIMIT).get();
-        trackRead('leaderboard_load', snapshot.size);
-      } catch (error) {
-        trackErr('leaderboard_load');
-        snapshot = await profilesRef.get();
-        trackRead('leaderboard_load', snapshot.size);
-      }
-
+        .collection('profiles')
+        .get();
       const profiles = [];
       snapshot.forEach((doc) => {
         const data = doc.data();
         if (data.unlockedLevel) profiles.push(data);
       });
-      profiles.sort((a, b) => getLeaderboardScore(b) - getLeaderboardScore(a));
-      const normalizedProfiles = profiles.slice(0, LEADERBOARD_LIMIT);
-
-      const nextCache = {
-        timestamp: Date.now(),
-        data: normalizedProfiles,
-      };
-      leaderboardCacheRef.current = nextCache;
-      setGlobalProfiles(normalizedProfiles);
-
-      if (typeof window !== 'undefined') {
-        window.localStorage.setItem(LEADERBOARD_CACHE_KEY, JSON.stringify(nextCache));
-      }
-    } catch (error) {
-      trackErr('leaderboard_load');
-      console.error('Ошибка загрузки рейтинга:', error);
-    }
+      profiles.sort((a, b) => {
+        const scoreA =
+          a.score !== undefined
+            ? a.score
+            : (a.unlockedLevel || 1) * 10 * ((a.campaignPace || 10) / 5);
+        const scoreB =
+          b.score !== undefined
+            ? b.score
+            : (b.unlockedLevel || 1) * 10 * ((b.campaignPace || 10) / 5);
+        return scoreB - scoreA;
+      });
+      setGlobalProfiles(profiles);
+    } catch (e) {}
     setIsLoadingLeaderboard(false);
   };
 
@@ -2391,10 +2115,13 @@ function MainApp() {
     setCampaignPace(newPace);
     safeSave({ campaignPace: newPace });
     updatePublicProfile(
-      {
-        campaignPace: newPace,
-      },
-      { includeActivity: true }
+      unlockedLevel1,
+      unlockedLevel2,
+      newPace,
+      score,
+      coins,
+      gems,
+      equippedAvatar
     );
   };
   const triggerErrorEffect = () => {
@@ -2604,7 +2331,7 @@ function MainApp() {
       complexityWarning: complexityWarning,
     };
     const safeHistory = Array.isArray(history) ? history : [];
-    const newHistory = [sessionResult, ...safeHistory].slice(0, HISTORY_LIMIT);
+    const newHistory = [sessionResult, ...safeHistory].slice(0, 100);
     setHistory(newHistory);
 
     let rankedUp = false;
@@ -2636,20 +2363,20 @@ function MainApp() {
     }
 
     safeSave({
-      history: newHistory,
+      history: JSON.stringify(newHistory),
       score: newScore,
       coins: newCoins,
       ...(nextLevel1 !== unlockedLevel1 && { unlockedLevel1: nextLevel1 }),
       ...(nextLevel2 !== unlockedLevel2 && { unlockedLevel2: nextLevel2 }),
     });
     updatePublicProfile(
-      {
-        unlockedLevel: nextLevel1,
-        unlockedLevel2: nextLevel2,
-        score: newScore,
-        leaderboardScore: newScore,
-      },
-      { includeActivity: true }
+      nextLevel1,
+      nextLevel2,
+      campaignPace,
+      newScore,
+      newCoins,
+      gems,
+      equippedAvatar
     );
     setGameState((prev) => ({
       ...(prev || {}),
@@ -3199,12 +2926,8 @@ function MainApp() {
   };
 
   const renderShop = () => {
-    const today = new Date().toLocaleDateString();
-    const dailyCount =
-      typeof lastDailyChest === 'string' && lastDailyChest.startsWith(today)
-        ? parseInt(lastDailyChest.split('|')[1], 10) || 0
-        : 0;
-    const canOpenDaily = dailyCount < 5;
+    const canOpenDaily =
+      Date.now() - (lastDailyChest || 0) > 24 * 60 * 60 * 1000;
     return (
       <div className="min-h-[100dvh] bg-black text-white p-4 sm:p-6 flex flex-col items-center">
         <div className="w-full max-w-4xl space-y-8 pb-10">
@@ -3778,24 +3501,24 @@ function MainApp() {
 
     let coinBase =
       selectedBoss.id === 'boss_1'
-        ? 500
-        : selectedBoss.id === 'boss_2'
         ? 1000
-        : selectedBoss.id === 'boss_3'
+        : selectedBoss.id === 'boss_2'
         ? 5000
+        : selectedBoss.id === 'boss_3'
+        ? 50000
         : selectedBoss.id === 'boss_4'
-        ? 10000
-        : 50000;
+        ? 150000
+        : 500000;
     let gemBase =
       selectedBoss.id === 'boss_1'
         ? 3
         : selectedBoss.id === 'boss_2'
         ? 5
         : selectedBoss.id === 'boss_3'
-        ? 10
+        ? 25
         : selectedBoss.id === 'boss_4'
-        ? 30
-        : 60;
+        ? 50
+        : 100;
 
     let myExpectedReward = 'Нет урона = нет лута';
     if (myDamage > 0) {
@@ -4055,9 +3778,17 @@ function MainApp() {
             isLoading: true,
           }
       );
-      sortedStudents = classStudentProfiles.sort(
-        (a, b) => getLeaderboardScore(b) - getLeaderboardScore(a)
-      );
+      sortedStudents = classStudentProfiles.sort((a, b) => {
+        const scoreA =
+          a.score !== undefined
+            ? a.score
+            : (a.unlockedLevel || 1) * 10 * ((a.campaignPace || 10) / 5);
+        const scoreB =
+          b.score !== undefined
+            ? b.score
+            : (b.unlockedLevel || 1) * 10 * ((b.campaignPace || 10) / 5);
+        return scoreB - scoreA;
+      });
       const loaded = classStudentProfiles.filter((p) => !p.isLoading);
       if (loaded.length > 0) {
         avgLevel = Math.round(
@@ -4093,7 +3824,6 @@ function MainApp() {
           .collection('profiles')
           .doc(normalized)
           .get();
-        trackRead('teacher_add_student', docRef.exists ? 1 : 0);
         if (docRef.exists) {
           const updatedClasses = classes.map((c) => {
             if (c.id === effectiveClassId) {
@@ -4102,8 +3832,7 @@ function MainApp() {
             return c;
           });
           setClasses(updatedClasses);
-          safeSave({ classes: updatedClasses }, true);
-          trackWrite('teacher_add_student', 1);
+          safeSave({ classes: updatedClasses });
           await db
             .collection('artifacts')
             .doc(APP_ID)
@@ -4114,6 +3843,7 @@ function MainApp() {
             .set(
               {
                 className: currentClass?.name || '',
+                teacherName: user?.email.split('@')[0] || '',
               },
               { merge: true }
             );
@@ -4126,7 +3856,6 @@ function MainApp() {
           setTeacherMessage({ text: 'Ученик не найден!', type: 'error' });
         }
       } catch (e) {
-        trackErr('teacher_add_student');
         setTeacherMessage({ text: 'Ошибка поиска.', type: 'error' });
       }
     };
@@ -4142,14 +3871,8 @@ function MainApp() {
         return c;
       });
       setClasses(updatedClasses);
-      safeSave({ classes: updatedClasses }, true);
-      setClassProfiles((prev) => {
-        const next = { ...prev };
-        delete next[studentToRemove];
-        return next;
-      });
+      safeSave({ classes: updatedClasses });
       if (isCloudEnabled) {
-        trackWrite('teacher_remove_student', 1);
         db.collection('artifacts')
           .doc(APP_ID)
           .collection('public')
@@ -4159,13 +3882,11 @@ function MainApp() {
           .set(
             {
               className: firebase.firestore.FieldValue.delete(),
+              teacherName: firebase.firestore.FieldValue.delete(),
             },
             { merge: true }
           )
-          .catch((e) => {
-            trackErr('teacher_remove_student');
-            console.error(e);
-          });
+          .catch((e) => console.error(e));
       }
     };
 
@@ -4243,7 +3964,7 @@ function MainApp() {
                       };
                       const newClasses = [...classes, newClass];
                       setClasses(newClasses);
-                      safeSave({ classes: newClasses }, true);
+                      safeSave({ classes: newClasses });
                       setActiveClassId(newClass.id);
                       setNewClassName('');
                     }
@@ -4294,7 +4015,7 @@ function MainApp() {
                         (c) => c.id !== effectiveClassId
                       );
                       setClasses(updatedClasses);
-                      safeSave({ classes: updatedClasses }, true);
+                      safeSave({ classes: updatedClasses });
                       setActiveClassId(null);
                     }}
                     className="text-neutral-600 hover:text-red-500 transition-colors"
@@ -4389,7 +4110,12 @@ function MainApp() {
                             );
                           }
                           const sRank = getRank(student.unlockedLevel || 1);
-                          const displayScore = getLeaderboardScore(student);
+                          const displayScore =
+                            student.score !== undefined
+                              ? student.score
+                              : (student.unlockedLevel || 1) *
+                                10 *
+                                ((student.campaignPace || 10) / 5);
                           return (
                             <tr
                               key={student.username}
@@ -5268,7 +4994,12 @@ function MainApp() {
                     const sLeague = getLeague(student.unlockedLevel || 1);
                     const isMe =
                       user && student.username === user.email.split('@')[0];
-                    const displayScore = getLeaderboardScore(student);
+                    const displayScore =
+                      student.score !== undefined
+                        ? student.score
+                        : (student.unlockedLevel || 1) *
+                          10 *
+                          ((student.campaignPace || 10) / 5);
                     return (
                       <tr
                         key={student.username}
