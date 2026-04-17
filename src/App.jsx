@@ -1560,36 +1560,44 @@ function MainApp() {
       });
     } else if (type === 'normal' && safeCoins >= 300) {
       // 📦 Обычный сундук (Стоит 300 монет)
-      cAdd = -300; 
-      
-      if (rng < 0.02) { 
-        // 💎 2% шанс - ЛЕГЕНДАРНЫЙ ДРОП ГЕМОВ
-        gAdd += 5; 
+      cAdd = -300;
+
+      if (rng < 0.002) {
+        // 0.2% шанс (1 из 500) - ДЖЕКПОТ
+        cAdd += 500;
+        rewardTitle = 'ДЖЕКПОТ! +500 Монет!';
+      } else if (rng < 0.004) {
+        // 0.2% шанс (1 из 500) - ВОЗВРАТ
+        cAdd += 300;
+        rewardTitle = 'Повезло! Возврат 300 Монет';
+      } else if (rng < 0.024) {
+        // 2% шанс - ЛЕГЕНДАРНЫЙ ДРОП ГЕМОВ
+        gAdd += 5;
         rewardTitle = '💎 ЛЕГЕНДАРНЫЙ ДРОП! +5 Гемов!';
-      } else if (rng < 0.05) { 
-        // 👕 3% шанс - Скины
+      } else if (rng < 0.054) {
+        // 3% шанс - Скины
         const coinAvatars = AVATARS.filter((a) => a.currency === 'coins' && a.id !== 'default');
         const randomAvatar = coinAvatars[Math.floor(Math.random() * coinAvatars.length)];
         if (!newInventory.includes(randomAvatar.id)) {
           newInventory.push(randomAvatar.id);
           rewardTitle = `НОВЫЙ АВАТАР: ${randomAvatar.name}!`;
         } else {
-          cAdd += 500; 
+          cAdd += 500;
           rewardTitle = 'Аватар уже есть. Компенсация: +500 Монет';
         }
-      } else if (rng < 0.60) {
-        // 📉 55% шанс - Убыток
-        cAdd += 30; // Итог: -70 монет
-        rewardTitle = 'Не повезло... +30 Монет';
+      } else if (rng < 0.65) {
+        // 60% шанс - Убыток
+        cAdd += 50; // Итог: -250 монет
+        rewardTitle = 'Не повезло... +50 Монет';
       } else {
-        // 📈 40% шанс - Окупился
-        cAdd += 150; // Итог: +50 монет
-        rewardTitle = 'Отличный лут! +150 Монет';
+        // ~35% шанс - Окупился
+        cAdd += 350; // Итог: +50 монет чистой прибыли
+        rewardTitle = 'Отличный лут! +350 Монет';
       }
       setRewardModal({
         title: 'Обычный сундук',
         reward: rewardTitle,
-        icon: rng < 0.02 ? '💎' : '📦', // Иконка меняется при выпадении гемов!
+        icon: rng < 0.024 ? '💎' : '📦',
       });
 
     } else if (type === 'epic' && safeGems >= 10) {
