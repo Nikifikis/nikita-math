@@ -386,7 +386,7 @@ const RAID_BOSSES = [
     id: 'boss_2',
     name: 'Кибер-Орк',
     icon: 'https://raw.githubusercontent.com/Nikifikis/nikita-math/refs/heads/main/public/avatars/Boss-lvl2.png',
-    hp: 200000,
+    hp: 50000,
     league: 'Серебряная Лига',
     bg: 'bg-gray-800/40',
     border: 'border-gray-500/50',
@@ -396,7 +396,7 @@ const RAID_BOSSES = [
     id: 'boss_3',
     name: 'Меха-Дракон',
     icon: 'https://raw.githubusercontent.com/Nikifikis/nikita-math/refs/heads/main/public/avatars/boss-lvl3.png',
-    hp: 1000000,
+    hp: 100000,
     league: 'Золотая Лига',
     bg: 'bg-yellow-900/20',
     border: 'border-yellow-500/50',
@@ -406,7 +406,7 @@ const RAID_BOSSES = [
     id: 'boss_4',
     name: 'Разрушитель Миров',
     icon: 'https://raw.githubusercontent.com/Nikifikis/nikita-math/refs/heads/main/public/avatars/boss-lvl4.png',
-    hp: 2000000,
+    hp: 500000,
     league: 'Лига Мастеров',
     bg: 'bg-purple-900/20',
     border: 'border-purple-500/50',
@@ -600,16 +600,16 @@ const SUPER_IMPLANTS = [
     name: 'Нейро-ускоритель',
     icon: '🧠',
     price: 150,
-    dmg: 100,
-    desc: '+100 Урона по боссам',
+    dmg: 120,
+    desc: '+120 Урона по боссам',
   },
   {
     id: 'imp_god',
     name: 'Чип Разрушителя',
     icon: '💥',
     price: 350,
-    dmg: 150,
-    desc: '+150 Урона по боссам',
+    dmg: 300,
+    desc: '+300 Урона по боссам',
   },
 ];
 
@@ -1560,44 +1560,36 @@ function MainApp() {
       });
     } else if (type === 'normal' && safeCoins >= 300) {
       // 📦 Обычный сундук (Стоит 300 монет)
-      cAdd = -300;
-
-      if (rng < 0.002) {
-        // 0.2% шанс (1 из 500) - ДЖЕКПОТ
-        cAdd += 500;
-        rewardTitle = 'ДЖЕКПОТ! +500 Монет!';
-      } else if (rng < 0.004) {
-        // 0.2% шанс (1 из 500) - ВОЗВРАТ
-        cAdd += 300;
-        rewardTitle = 'Повезло! Возврат 300 Монет';
-      } else if (rng < 0.024) {
-        // 2% шанс - ЛЕГЕНДАРНЫЙ ДРОП ГЕМОВ
-        gAdd += 5;
+      cAdd = -300; 
+      
+      if (rng < 0.02) { 
+        // 💎 2% шанс - ЛЕГЕНДАРНЫЙ ДРОП ГЕМОВ
+        gAdd += 5; 
         rewardTitle = '💎 ЛЕГЕНДАРНЫЙ ДРОП! +5 Гемов!';
-      } else if (rng < 0.054) {
-        // 3% шанс - Скины
+      } else if (rng < 0.05) { 
+        // 👕 3% шанс - Скины
         const coinAvatars = AVATARS.filter((a) => a.currency === 'coins' && a.id !== 'default');
         const randomAvatar = coinAvatars[Math.floor(Math.random() * coinAvatars.length)];
         if (!newInventory.includes(randomAvatar.id)) {
           newInventory.push(randomAvatar.id);
           rewardTitle = `НОВЫЙ АВАТАР: ${randomAvatar.name}!`;
         } else {
-          cAdd += 500;
+          cAdd += 500; 
           rewardTitle = 'Аватар уже есть. Компенсация: +500 Монет';
         }
-      } else if (rng < 0.65) {
-        // 60% шанс - Убыток
-        cAdd += 50; // Итог: -250 монет
-        rewardTitle = 'Не повезло... +50 Монет';
+      } else if (rng < 0.60) {
+        // 📉 55% шанс - Убыток
+        cAdd += 30; // Итог: -70 монет
+        rewardTitle = 'Не повезло... +30 Монет';
       } else {
-        // ~35% шанс - Окупился
-        cAdd += 350; // Итог: +50 монет чистой прибыли
-        rewardTitle = 'Отличный лут! +350 Монет';
+        // 📈 40% шанс - Окупился
+        cAdd += 150; // Итог: +50 монет
+        rewardTitle = 'Отличный лут! +150 Монет';
       }
       setRewardModal({
         title: 'Обычный сундук',
         reward: rewardTitle,
-        icon: rng < 0.024 ? '💎' : '📦',
+        icon: rng < 0.02 ? '💎' : '📦', // Иконка меняется при выпадении гемов!
       });
 
     } else if (type === 'epic' && safeGems >= 10) {
@@ -1900,24 +1892,24 @@ function MainApp() {
 
     let coinBase =
       selectedBoss.id === 'boss_1'
-        ? 1000
+        ? 500
         : selectedBoss.id === 'boss_2'
-        ? 5000
+        ? 1000
         : selectedBoss.id === 'boss_3'
-        ? 50000
+        ? 5000
         : selectedBoss.id === 'boss_4'
-        ? 150000
-        : 500000;
+        ? 10000
+        : 50000;
     let gemBase =
       selectedBoss.id === 'boss_1'
         ? 3
         : selectedBoss.id === 'boss_2'
         ? 5
         : selectedBoss.id === 'boss_3'
-        ? 25
+        ? 10
         : selectedBoss.id === 'boss_4'
-        ? 50
-        : 100;
+        ? 30
+        : 60;
 
     let cAdd = coinBase,
       gAdd = gemBase,
@@ -3500,7 +3492,7 @@ function MainApp() {
 
     const participantsList = cleanParticipants
       .sort((a, b) => b.damage - a.damage)
-      .slice(0, 5);
+      .slice(0, 50);
 
     const myUsername = user?.email?.split('@')[0] || 'guest';
     const myDamage = cleanParticipants.find((p) => p.name === myUsername)?.damage || 0;
@@ -3509,24 +3501,24 @@ function MainApp() {
 
     let coinBase =
       selectedBoss.id === 'boss_1'
-        ? 1000
+        ? 500
         : selectedBoss.id === 'boss_2'
-        ? 5000
+        ? 1000
         : selectedBoss.id === 'boss_3'
-        ? 50000
+        ? 5000
         : selectedBoss.id === 'boss_4'
-        ? 150000
-        : 500000;
+        ? 10000
+        : 50000;
     let gemBase =
       selectedBoss.id === 'boss_1'
         ? 3
         : selectedBoss.id === 'boss_2'
         ? 5
         : selectedBoss.id === 'boss_3'
-        ? 25
+        ? 10
         : selectedBoss.id === 'boss_4'
-        ? 50
-        : 100;
+        ? 30
+        : 60;
 
     let myExpectedReward = 'Нет урона = нет лута';
     if (myDamage > 0) {
@@ -3706,7 +3698,7 @@ function MainApp() {
             <h4 className="text-sm font-bold text-neutral-500 uppercase tracking-widest mb-4 flex items-center gap-2">
               <Zap size={16} /> Топ Урона
             </h4>
-            <div className="flex-1 flex flex-col gap-3">
+            <div className="flex-1 flex flex-col gap-3 overflow-y-auto custom-scrollbar pr-2 max-h-[300px] md:max-h-full">
               {participantsList.length === 0 ? (
                 <div className="text-xs text-neutral-600 font-bold text-center mt-10">
                   Пока никто не атаковал
